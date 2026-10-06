@@ -4,9 +4,9 @@ mod db;
 mod paths;
 mod transfer;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 fn migrations() -> Vec<Migration> {
@@ -32,6 +32,17 @@ fn migrations() -> Vec<Migration> {
     ]
 }
 
+/// Zeitpunkt des Prozessstarts, für die Messung des Kaltstarts.
+struct StartTime(Instant);
+
+/// Das Frontend ist geladen und hat zum ersten Mal gerendert: Fenster zeigen, Startzeit protokollieren.
+#[tauri::command]
+fn app_ready(window: WebviewWindow, start: State<'_, StartTime>) {
+    let _ = window.show();
+    let _ = window.set_focus();
+    println!("Flou bereit nach {} ms", start.0.elapsed().as_millis());
+}
+
 /// Beendet die App, nachdem das Frontend ausstehende Änderungen gespeichert hat.
 #[tauri::command]
 fn app_quit(app: AppHandle) {
@@ -39,6 +50,7 @@ fn app_quit(app: AppHandle) {
 }
 
 pub fn run() {
+    let started = StartTime(Instant::now());
     tauri::Builder::default()
         .plugin(
             tauri_plugin_sql::Builder::default()
@@ -47,6 +59,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .manage(db::Db::new())
+        .manage(started)
         .setup(|app| {
             paths::ensure_dirs(app.handle())?;
             backup::schedule(app.handle().clone());
@@ -65,6 +78,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app_quit,
+            app_ready,
             assets::asset_import_bytes,
             assets::asset_import_file,
             assets::open_external,

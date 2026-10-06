@@ -87,7 +87,7 @@ interface SidebarButtonProps {
   children: ReactNode;
 }
 
-export function SidebarButton({ icon: Icon, onClick, hint, className, children }: SidebarButtonProps) {
+function SidebarButton({ icon: Icon, onClick, hint, className, children }: SidebarButtonProps) {
   return (
     <button
       onClick={onClick}

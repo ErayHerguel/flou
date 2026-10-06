@@ -48,10 +48,6 @@ export function discard(match: (key: string) => boolean): void {
   for (const key of [...pending.keys()]) if (match(key)) pending.delete(key);
 }
 
-export function hasPending(): boolean {
-  return pending.size > 0 || useSaveStatus.getState().status === 'saving';
-}
-
 /** Schreibt alle ausstehenden Änderungen in einer Transaktion und wartet darauf. */
 export function flush(): Promise<void> {
   if (timer) {

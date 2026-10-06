@@ -31,7 +31,7 @@ const DISPLAY: Record<string, string> = {
   ' ': 'Leertaste',
 };
 
-export function parseCombo(spec: string): Combo {
+function parseCombo(spec: string): Combo {
   const parts = spec.split('+');
   // "Mod++" wäre mehrdeutig; Plus wird hier nicht verwendet.
   const key = parts[parts.length - 1];

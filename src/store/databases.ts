@@ -44,7 +44,7 @@ export const PROPERTY_LABEL: Record<PropertyType, string> = {
 const VIEW_LABEL: Record<ViewType, string> = { table: 'Tabelle', board: 'Board' };
 
 /** Standard-Schema einer neuen Datenbank: Status, Tags, Datum sowie Tabellen- und Board-Ansicht. */
-export function defaultSchema(databaseId: string): Pick<DatabaseData, 'properties' | 'views'> {
+function defaultSchema(databaseId: string): Pick<DatabaseData, 'properties' | 'views'> {
   const status: Property = {
     id: newId(),
     databaseId,

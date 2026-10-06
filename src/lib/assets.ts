@@ -14,7 +14,7 @@ export async function initPaths(): Promise<AppPaths> {
   return paths;
 }
 
-export function appPaths(): AppPaths {
+function appPaths(): AppPaths {
   if (!paths) throw new Error('App-Pfade sind noch nicht geladen');
   return paths;
 }
@@ -24,7 +24,7 @@ export function assetUrl(name: string): string {
   return convertFileSrc(`${appPaths().assetsDir}/${name}`);
 }
 
-export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'heic'];
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'heic'];
 
 export function importImageFile(path: string): Promise<string> {
   return invoke<string>('asset_import_file', { path });

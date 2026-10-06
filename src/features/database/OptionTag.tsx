@@ -2,7 +2,7 @@ import type { SelectOption, TagColor } from '../../db/database';
 import { cx } from '../../lib/cx';
 
 /** Ausgeschriebene Klassen, damit Tailwind sie beim Scannen findet. */
-export const TAG_CLASS: Record<TagColor, string> = {
+const TAG_CLASS: Record<TagColor, string> = {
   gray: 'tag-gray',
   brown: 'tag-brown',
   orange: 'tag-orange',

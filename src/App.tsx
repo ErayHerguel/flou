@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -70,7 +71,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (boot.status !== 'loading') void getCurrentWindow().show();
+    if (boot.status !== 'loading') void invoke('app_ready');
   }, [boot.status]);
 
   useEffect(() => {

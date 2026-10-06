@@ -33,7 +33,7 @@ export async function createPageAndOpen(parentId: string | null): Promise<void> 
   useUI.getState().requestFocus('title');
 }
 
-export async function createDatabaseAndOpen(parentId: string | null): Promise<void> {
+async function createDatabaseAndOpen(parentId: string | null): Promise<void> {
   const id = await useDatabases.getState().createDatabase(parentId);
   if (parentId) useUI.getState().setExpanded(parentId, true);
   useUI.getState().open(id);

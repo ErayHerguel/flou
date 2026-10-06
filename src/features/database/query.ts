@@ -57,7 +57,7 @@ export const UNARY: FilterOperator[] = ['is_empty', 'is_not_empty', 'is_checked'
 export const filterType = (propertyId: string, props: Map<string, Property>): FilterType =>
   propertyId === TITLE_PROPERTY ? 'title' : (props.get(propertyId)?.type ?? 'text');
 
-export const valueOf = (row: Row, propertyId: string): CellValue =>
+const valueOf = (row: Row, propertyId: string): CellValue =>
   propertyId === TITLE_PROPERTY ? row.title : (row.values[propertyId] ?? null);
 
 export function matchesFilter(row: Row, filter: Filter, type: FilterType): boolean {
@@ -133,7 +133,7 @@ function compareValues(a: CellValue, b: CellValue, type: FilterType, prop: Prope
   }
 }
 
-export function compareRows(sorts: Sort[], props: Map<string, Property>) {
+function compareRows(sorts: Sort[], props: Map<string, Property>) {
   return (a: Row, b: Row): number => {
     for (const sort of sorts) {
       const type = filterType(sort.propertyId, props);

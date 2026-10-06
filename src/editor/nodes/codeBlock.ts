@@ -2,9 +2,9 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import { el } from '../dom';
 
-export const lowlight = createLowlight(common);
+const lowlight = createLowlight(common);
 
-export const CODE_LANGUAGES: [string, string][] = [
+const CODE_LANGUAGES: [string, string][] = [
   ['', 'Text'],
   ['bash', 'Bash'],
   ['c', 'C'],

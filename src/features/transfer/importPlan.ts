@@ -23,7 +23,7 @@ export interface ImportPlan {
   images: string[];
 }
 
-export const IMAGE_PLACEHOLDER = 'import:';
+const IMAGE_PLACEHOLDER = 'import:';
 
 const stripExt = (path: string) => path.replace(/\.(md|markdown)$/i, '');
 /** Notion hängt beim Export eine 32-stellige ID an Datei- und Ordnernamen. */

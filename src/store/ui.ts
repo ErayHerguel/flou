@@ -10,8 +10,8 @@ export interface FocusRequest {
 }
 export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | null;
 
-export const SIDEBAR_MIN = 200;
-export const SIDEBAR_MAX = 480;
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 480;
 
 interface UIState {
   currentId: string | null;

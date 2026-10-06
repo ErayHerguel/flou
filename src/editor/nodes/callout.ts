@@ -2,7 +2,7 @@ import { mergeAttributes, Node } from '@tiptap/core';
 import { el } from '../dom';
 import { unwrapAtStart } from './unwrap';
 
-export const CALLOUT_ICONS = ['💡', '⚠️', 'ℹ️', '✅', '❗', '📌', '🔥', '💬'];
+const CALLOUT_ICONS = ['💡', '⚠️', 'ℹ️', '✅', '❗', '📌', '🔥', '💬'];
 
 export const Callout = Node.create({
   name: 'callout',

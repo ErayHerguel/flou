@@ -29,7 +29,7 @@ const shell = (variant: CellProps['variant']) =>
   cx('flex min-h-8 w-full min-w-0 items-center text-left text-sm', variant === 'panel' ? 'rounded-md px-2 hover:bg-hover' : 'px-2');
 
 /** Editor bzw. Anzeige eines Property-Werts, passend zum Typ. */
-export function Cell({ property, value, onChange, variant }: CellProps) {
+function Cell({ property, value, onChange, variant }: CellProps) {
   switch (property.type) {
     case 'checkbox':
       return (
