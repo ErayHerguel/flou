@@ -1,0 +1,104 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { saveContent } from '../db/content';
+import { flush } from '../db/saveQueue';
+import { freshDatabase } from '../test/setup';
+import { usePages } from './pages';
+
+const store = () => usePages.getState();
+const roots = () => store().children.get(null) ?? [];
+
+let driver: Awaited<ReturnType<typeof freshDatabase>>;
+
+beforeEach(async () => {
+  driver = await freshDatabase();
+});
+
+async function reload() {
+  await flush();
+  await store().load();
+}
+
+describe('Seiten-Store', () => {
+  it('legt Seiten an definierter Position an und speichert die Reihenfolge', async () => {
+    const a = await store().create({ title: 'A' });
+    const b = await store().create({ title: 'B' });
+    const c = await store().create({ title: 'C', index: 0 });
+    expect(roots()).toEqual([c, a, b]);
+    await reload();
+    expect(roots()).toEqual([c, a, b]);
+  });
+
+  it('verschiebt und verschachtelt, verhindert aber Zyklen', async () => {
+    const a = await store().create({ title: 'A' });
+    const b = await store().create({ title: 'B' });
+    await store().move(b, a, 0);
+    expect(store().children.get(a)).toEqual([b]);
+    await store().move(a, b, 0);
+    expect(store().pages[a].parentId).toBeNull();
+    await reload();
+    expect(store().children.get(a)).toEqual([b]);
+    expect(roots()).toEqual([a]);
+  });
+
+  it('sortiert innerhalb derselben Ebene', async () => {
+    const ids = [];
+    for (const t of ['1', '2', '3', '4']) ids.push(await store().create({ title: t }));
+    await store().move(ids[0], null, 3);
+    expect(roots()).toEqual([ids[1], ids[2], ids[3], ids[0]]);
+    await reload();
+    expect(roots()).toEqual([ids[1], ids[2], ids[3], ids[0]]);
+  });
+
+  it('legt Teilbäume in den Papierkorb und stellt sie wieder her', async () => {
+    const parent = await store().create({ title: 'P' });
+    const child = await store().create({ title: 'C', parentId: parent });
+    await store().trash(parent);
+    expect(store().pages[child].deletedAt).not.toBeNull();
+    expect(roots()).toEqual([]);
+    await store().restore(parent);
+    await reload();
+    expect(store().pages[child].deletedAt).toBeNull();
+    expect(store().children.get(parent)).toEqual([child]);
+  });
+
+  it('stellt ein Kind ohne lebenden Elternteil auf oberster Ebene wieder her', async () => {
+    const parent = await store().create({ title: 'P' });
+    const child = await store().create({ title: 'C', parentId: parent });
+    await store().trash(child);
+    await store().trash(parent);
+    await store().restore(child);
+    await reload();
+    expect(store().pages[child].parentId).toBeNull();
+    expect(roots()).toEqual([child]);
+  });
+
+  it('löscht endgültig samt Unterseiten, Inhalt und Links', async () => {
+    const a = await store().create({ title: 'A' });
+    const child = await store().create({ title: 'Kind', parentId: a });
+    const b = await store().create({ title: 'B' });
+    await driver.tx(saveContent(b, { type: 'doc' }, '', [a], 1));
+    await driver.tx(saveContent(child, { type: 'doc' }, 'x', [], 1));
+    await store().trash(a);
+    await store().deleteForever(a);
+    await reload();
+    expect(Object.keys(store().pages)).toEqual([b]);
+    expect(await driver.select('SELECT * FROM page_links')).toEqual([]);
+    expect(await driver.select('SELECT page_id FROM page_content')).toEqual([{ page_id: b }]);
+  });
+
+  it('übernimmt Titeländerungen gebündelt', async () => {
+    const a = await store().create({ title: '' });
+    store().update(a, { title: 'H' });
+    store().update(a, { title: 'Hallo', icon: '👋' });
+    await reload();
+    expect(store().pages[a]).toMatchObject({ title: 'Hallo', icon: '👋' });
+  });
+
+  it('rollt den Zustand zurück, wenn die Transaktion scheitert', async () => {
+    const a = await store().create({ title: 'A' });
+    const spy = vi.spyOn(driver, 'tx').mockRejectedValueOnce(new Error('Platte voll'));
+    await expect(store().trash(a)).rejects.toThrow('Platte voll');
+    expect(store().pages[a].deletedAt).toBeNull();
+    spy.mockRestore();
+  });
+});

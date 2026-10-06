@@ -1,0 +1,134 @@
+/* Typografie des Block-Editors. Alle Werte stammen aus den Design-Tokens in index.css. */
+
+.flou-editor {
+  outline: none;
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  color: var(--c-text);
+  caret-color: var(--c-text);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  -webkit-font-smoothing: antialiased;
+}
+
+.flou-editor > * + * {
+  margin-top: 2px;
+}
+
+.flou-editor p {
+  min-height: var(--text-base--line-height);
+  padding: 3px 0;
+}
+
+.flou-editor h1,
+.flou-editor h2,
+.flou-editor h3 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.flou-editor h1 {
+  font-size: var(--text-2xl);
+  line-height: var(--text-2xl--line-height);
+  margin-top: 28px;
+  padding: 3px 0;
+}
+.flou-editor h2 {
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  margin-top: 22px;
+  padding: 2px 0;
+}
+.flou-editor h3 {
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
+  margin-top: 16px;
+  padding: 2px 0;
+}
+.flou-editor > :first-child {
+  margin-top: 0;
+}
+
+.flou-editor ul,
+.flou-editor ol {
+  padding-left: 1.6em;
+}
+.flou-editor ul {
+  list-style: disc;
+}
+.flou-editor ul ul {
+  list-style: circle;
+}
+.flou-editor ul ul ul {
+  list-style: square;
+}
+.flou-editor ol {
+  list-style: decimal;
+}
+.flou-editor ol ol {
+  list-style: lower-alpha;
+}
+.flou-editor ol ol ol {
+  list-style: lower-roman;
+}
+.flou-editor li > p {
+  padding: 1px 0;
+}
+.flou-editor li::marker {
+  color: var(--c-muted);
+}
+
+.flou-editor blockquote {
+  border-left: 3px solid var(--c-text);
+  padding: 2px 0 2px 14px;
+  margin: 6px 0;
+}
+
+.flou-editor hr {
+  border: none;
+  border-top: 1px solid var(--c-border-strong);
+  margin: 14px 0;
+}
+.flou-editor hr.ProseMirror-selectednode {
+  border-top-color: var(--c-accent);
+}
+
+.flou-editor strong {
+  font-weight: 650;
+}
+.flou-editor a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--c-faint);
+  text-underline-offset: 3px;
+}
+.flou-editor a:hover {
+  text-decoration-color: var(--c-text);
+}
+.flou-editor code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--c-code);
+  color: var(--c-danger);
+  border-radius: var(--radius-sm);
+  padding: 0.15em 0.35em;
+}
+.flou-editor mark {
+  background: var(--c-mark);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.flou-editor .is-empty.is-editor-empty:first-child::before,
+.flou-editor p.is-empty:only-child::before,
+.flou-editor :is(p, h1, h2, h3).is-empty.has-focus::before {
+  content: attr(data-placeholder);
+  color: var(--c-faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.flou-editor .ProseMirror-gapcursor:after {
+  border-top-color: var(--c-text);
+}

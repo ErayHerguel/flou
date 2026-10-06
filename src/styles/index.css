@@ -1,0 +1,252 @@
+@import 'tailwindcss';
+@import './editor.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design-Tokens. Alle Farben laufen über CSS-Variablen, damit Light/Dark nur hier umgeschaltet wird.
+ * Die Standardpalette von Tailwind ist bewusst zurückgesetzt: es gibt nur diese Werte.
+ */
+:root {
+  --c-bg: #ffffff;
+  --c-sidebar: #f8f8f6;
+  --c-surface: #ffffff;
+  --c-hover: rgb(40 40 35 / 0.055);
+  --c-active: rgb(40 40 35 / 0.09);
+  --c-border: #ebebe8;
+  --c-border-strong: #d9d9d5;
+  --c-text: #23231f;
+  --c-muted: #6c6c66;
+  --c-faint: #a5a59f;
+  --c-accent: #2f6fde;
+  --c-accent-soft: rgb(47 111 222 / 0.12);
+  --c-accent-fg: #ffffff;
+  --c-danger: #d44c47;
+  --c-mark: #fbeeb8;
+  --c-code: #f5f4f1;
+  --c-overlay: rgb(15 15 15 / 0.32);
+  --c-tag-gray-bg: #ededeb;
+  --c-tag-gray-fg: #4f4e4a;
+  --c-tag-brown-bg: #f1e7df;
+  --c-tag-brown-fg: #6a4a35;
+  --c-tag-orange-bg: #fbe5d3;
+  --c-tag-orange-fg: #8a4b16;
+  --c-tag-yellow-bg: #fbf0c9;
+  --c-tag-yellow-fg: #7a5d0f;
+  --c-tag-green-bg: #dcefe3;
+  --c-tag-green-fg: #2b6346;
+  --c-tag-blue-bg: #dbeafa;
+  --c-tag-blue-fg: #245b8f;
+  --c-tag-purple-bg: #eadff7;
+  --c-tag-purple-fg: #5c3d8a;
+  --c-tag-pink-bg: #f8dfec;
+  --c-tag-pink-fg: #8a3463;
+  --c-tag-red-bg: #fadcd9;
+  --c-tag-red-fg: #9a2f2a;
+  --shadow-popover: 0 0 0 1px rgb(15 15 15 / 0.06), 0 4px 12px rgb(15 15 15 / 0.08),
+    0 12px 32px rgb(15 15 15 / 0.08);
+  color-scheme: light;
+}
+
+.dark {
+  --c-bg: #191919;
+  --c-sidebar: #202020;
+  --c-surface: #252525;
+  --c-hover: rgb(255 255 255 / 0.055);
+  --c-active: rgb(255 255 255 / 0.09);
+  --c-border: #2e2e2e;
+  --c-border-strong: #3c3c3c;
+  --c-text: #e8e7e3;
+  --c-muted: #9c9b96;
+  --c-faint: #6a6a66;
+  --c-accent: #5b8ef0;
+  --c-accent-soft: rgb(91 142 240 / 0.18);
+  --c-accent-fg: #ffffff;
+  --c-danger: #e26a65;
+  --c-mark: #5a4a17;
+  --c-code: #262626;
+  --c-overlay: rgb(0 0 0 / 0.5);
+  --c-tag-gray-bg: #373737;
+  --c-tag-gray-fg: #d4d4d1;
+  --c-tag-brown-bg: #3f3029;
+  --c-tag-brown-fg: #dbbca6;
+  --c-tag-orange-bg: #4a3020;
+  --c-tag-orange-fg: #f0b582;
+  --c-tag-yellow-bg: #463b1b;
+  --c-tag-yellow-fg: #ecd07a;
+  --c-tag-green-bg: #213a2c;
+  --c-tag-green-fg: #8fd3a8;
+  --c-tag-blue-bg: #1f3450;
+  --c-tag-blue-fg: #93bff0;
+  --c-tag-purple-bg: #352a4a;
+  --c-tag-purple-fg: #c5a9ef;
+  --c-tag-pink-bg: #47263a;
+  --c-tag-pink-fg: #eda6cb;
+  --c-tag-red-bg: #4c2523;
+  --c-tag-red-fg: #f2a19b;
+  --shadow-popover: 0 0 0 1px rgb(255 255 255 / 0.08), 0 4px 12px rgb(0 0 0 / 0.3),
+    0 12px 32px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-bg: var(--c-bg);
+  --color-sidebar: var(--c-sidebar);
+  --color-surface: var(--c-surface);
+  --color-hover: var(--c-hover);
+  --color-active: var(--c-active);
+  --color-border: var(--c-border);
+  --color-border-strong: var(--c-border-strong);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-accent: var(--c-accent);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-accent-fg: var(--c-accent-fg);
+  --color-danger: var(--c-danger);
+  --color-mark: var(--c-mark);
+  --color-code: var(--c-code);
+  --color-overlay: var(--c-overlay);
+  --shadow-popover: var(--shadow-popover);
+}
+
+@theme {
+  --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, Monaco, monospace;
+
+  --text-*: initial;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 16px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13.5px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 26px;
+  --text-lg: 18px;
+  --text-lg--line-height: 26px;
+  --text-xl: 22px;
+  --text-xl--line-height: 30px;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 36px;
+  --text-title: 40px;
+  --text-title--line-height: 48px;
+
+  --radius-*: initial;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-full: 9999px;
+
+  --container-content: 720px;
+  --container-wide: 1200px;
+
+  --default-transition-duration: 120ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+
+  --animate-fade-in: fade-in 120ms ease-out;
+  --animate-pop-in: pop-in 120ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-2px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg font-sans text-sm text-text antialiased;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+  input,
+  textarea,
+  [contenteditable='true'] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  button {
+    cursor: default;
+  }
+  ::selection {
+    background: var(--c-accent-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--c-accent-soft);
+    outline-offset: 1px;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--c-border-strong);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@utility tag-gray {
+  background: var(--c-tag-gray-bg);
+  color: var(--c-tag-gray-fg);
+}
+@utility tag-brown {
+  background: var(--c-tag-brown-bg);
+  color: var(--c-tag-brown-fg);
+}
+@utility tag-orange {
+  background: var(--c-tag-orange-bg);
+  color: var(--c-tag-orange-fg);
+}
+@utility tag-yellow {
+  background: var(--c-tag-yellow-bg);
+  color: var(--c-tag-yellow-fg);
+}
+@utility tag-green {
+  background: var(--c-tag-green-bg);
+  color: var(--c-tag-green-fg);
+}
+@utility tag-blue {
+  background: var(--c-tag-blue-bg);
+  color: var(--c-tag-blue-fg);
+}
+@utility tag-purple {
+  background: var(--c-tag-purple-bg);
+  color: var(--c-tag-purple-fg);
+}
+@utility tag-pink {
+  background: var(--c-tag-pink-bg);
+  color: var(--c-tag-pink-fg);
+}
+@utility tag-red {
+  background: var(--c-tag-red-bg);
+  color: var(--c-tag-red-fg);
+}
