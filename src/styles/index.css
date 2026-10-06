@@ -24,6 +24,7 @@
   --c-danger: #d44c47;
   --c-mark: #fbeeb8;
   --c-code: #f5f4f1;
+  --c-code-fg: #c0504a;
   --c-overlay: rgb(15 15 15 / 0.32);
   --c-tag-gray-bg: #ededeb;
   --c-tag-gray-fg: #4f4e4a;
@@ -65,6 +66,7 @@
   --c-danger: #e26a65;
   --c-mark: #5a4a17;
   --c-code: #262626;
+  --c-code-fg: #e59a91;
   --c-overlay: rgb(0 0 0 / 0.5);
   --c-tag-gray-bg: #373737;
   --c-tag-gray-fg: #d4d4d1;

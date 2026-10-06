@@ -108,7 +108,7 @@
   font-family: var(--font-mono);
   font-size: 0.86em;
   background: var(--c-code);
-  color: var(--c-danger);
+  color: var(--c-code-fg);
   border-radius: var(--radius-sm);
   padding: 0.15em 0.35em;
 }
@@ -131,4 +131,370 @@
 
 .flou-editor .ProseMirror-gapcursor:after {
   border-top-color: var(--c-text);
+}
+
+/* ---------- To-do-Listen ---------- */
+.flou-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 2px;
+}
+.flou-editor ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.flou-editor ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: calc(var(--text-base--line-height) + 2px);
+  user-select: none;
+}
+.flou-editor ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.flou-editor ul[data-type='taskList'] input[type='checkbox'] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--c-border-strong);
+  border-radius: 4px;
+  background: var(--c-bg);
+  display: grid;
+  place-content: center;
+  transition: background-color 120ms, border-color 120ms;
+}
+.flou-editor ul[data-type='taskList'] input[type='checkbox']:checked {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+.flou-editor ul[data-type='taskList'] input[type='checkbox']:checked::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  border: 2px solid var(--c-accent-fg);
+  border-top: 0;
+  border-right: 0;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.flou-editor ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--c-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--c-faint);
+}
+
+/* ---------- Callout ---------- */
+.flou-editor .callout {
+  display: flex;
+  gap: 10px;
+  margin: 6px 0;
+  padding: 12px 16px 12px 12px;
+  border-radius: var(--radius-md);
+  background: var(--c-hover);
+}
+.flou-editor .callout-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 26px;
+  text-align: center;
+}
+.flou-editor .callout-icon:hover {
+  background: var(--c-active);
+}
+.flou-editor .callout-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Toggle ---------- */
+.flou-editor .toggle {
+  display: flex;
+  gap: 2px;
+  margin: 1px 0;
+}
+.flou-editor .toggle-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-top: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--c-muted);
+}
+.flou-editor .toggle-button:hover {
+  background: var(--c-hover);
+}
+.flou-editor .toggle-button svg {
+  transition: transform 120ms;
+}
+.flou-editor .toggle[data-open='true'] > .toggle-button svg {
+  transform: rotate(90deg);
+}
+.flou-editor .toggle-content {
+  flex: 1;
+  min-width: 0;
+}
+.flou-editor .toggle[data-open='false'] > .toggle-content > :not(:first-child) {
+  display: none;
+}
+
+/* ---------- Code ---------- */
+.flou-editor .code-block {
+  position: relative;
+  margin: 8px 0;
+  border-radius: var(--radius-md);
+  background: var(--c-code);
+}
+.flou-editor .code-block pre {
+  overflow-x: auto;
+  padding: 34px 18px 16px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 21px;
+  white-space: pre;
+}
+.flou-editor .code-block code {
+  background: none;
+  color: var(--c-text);
+  padding: 0;
+  font-size: inherit;
+}
+.flou-editor .code-language {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--c-faint);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  outline: none;
+  appearance: none;
+}
+.flou-editor .code-language:hover {
+  background: var(--c-hover);
+  color: var(--c-muted);
+}
+
+/* Syntax-Farben (dezent, für Light und Dark über Variablen) */
+:root {
+  --hl-comment: #8a8a85;
+  --hl-keyword: #a6255b;
+  --hl-string: #2f7a3b;
+  --hl-number: #a3540d;
+  --hl-title: #2a5db0;
+  --hl-attr: #7b4ab0;
+}
+.dark {
+  --hl-comment: #7c7c78;
+  --hl-keyword: #ff8fb1;
+  --hl-string: #9bd49c;
+  --hl-number: #f2b27a;
+  --hl-title: #8cb8ff;
+  --hl-attr: #c9a5f5;
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-doctag,
+.hljs-meta {
+  color: var(--hl-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-template-tag {
+  color: var(--hl-string);
+}
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--hl-number);
+}
+.hljs-title,
+.hljs-section,
+.hljs-function .hljs-title,
+.hljs-name {
+  color: var(--hl-title);
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-type,
+.hljs-property,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: var(--hl-attr);
+}
+.hljs-deletion {
+  color: var(--c-danger);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 650;
+}
+
+/* ---------- Bilder ---------- */
+.flou-editor .image-block {
+  margin: 8px 0;
+}
+.flou-editor .image-frame {
+  position: relative;
+  max-width: 100%;
+  width: fit-content;
+}
+.flou-editor .image-frame img {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+.flou-editor .image-block.is-selected img {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+.flou-editor .image-resize {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 6px;
+  height: 48px;
+  margin-top: -24px;
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.45);
+  border: 1px solid rgb(255 255 255 / 0.7);
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.flou-editor .image-frame:hover .image-resize {
+  opacity: 1;
+}
+
+/* ---------- Seiten: Unterseite und [[Link]] ---------- */
+.flou-editor .page-ref {
+  margin: 2px 0;
+}
+.flou-editor .page-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0 6px;
+  margin-left: -6px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.flou-editor .page-chip:hover {
+  background: var(--c-hover);
+}
+.flou-editor .page-chip .page-chip-title {
+  font-weight: 550;
+  text-decoration: underline;
+  text-decoration-color: var(--c-border-strong);
+  text-underline-offset: 3px;
+}
+.flou-editor .page-ref.is-selected .page-chip {
+  background: var(--c-accent-soft);
+}
+.flou-editor .page-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  color: var(--c-faint);
+  font-size: 16px;
+}
+.flou-editor .page-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 0 3px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.flou-editor .page-link:hover {
+  background: var(--c-hover);
+}
+.flou-editor .page-link .page-chip-icon {
+  width: auto;
+  align-self: center;
+  font-size: 0.95em;
+}
+.flou-editor .page-link .page-chip-title {
+  font-weight: 550;
+  text-decoration: underline;
+  text-decoration-color: var(--c-border-strong);
+  text-underline-offset: 3px;
+}
+.flou-editor .page-link > svg {
+  align-self: center;
+  color: var(--c-faint);
+}
+.flou-editor .page-link.is-selected {
+  background: var(--c-accent-soft);
+}
+.flou-editor .is-missing .page-chip-title {
+  color: var(--c-faint);
+  text-decoration: line-through;
+}
+
+/* ---------- Auswahl ganzer Blöcke ---------- */
+.flou-editor .ProseMirror-selectednode:not(.image-block):not(.page-ref):not(.page-link) {
+  border-radius: var(--radius-sm);
+  background: var(--c-accent-soft);
+}
+.flou-editor li.ProseMirror-selectednode {
+  outline: none;
+}
+
+/* ---------- Greifer links neben Blöcken ---------- */
+.block-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms;
+}
+.block-handle.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.block-handle-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--c-faint);
+}
+.block-handle-button:hover {
+  background: var(--c-hover);
+  color: var(--c-muted);
+}
+div.block-handle-button {
+  cursor: grab;
 }

@@ -1,10 +1,11 @@
-import { Smile } from 'lucide-react';
+import { ImageIcon, Smile } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Popover, type Anchor } from '../../components/Popover';
 import type { PageMeta } from '../../db/pages';
 import { getActiveEditor } from '../../editor/active';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
+import { chooseCover } from './Cover';
 import { EmojiPicker } from './EmojiPicker';
 
 export function PageHeader({ page }: { page: PageMeta }) {
@@ -18,7 +19,7 @@ export function PageHeader({ page }: { page: PageMeta }) {
   };
 
   return (
-    <div className="group/header pt-16">
+    <div className={page.cover ? 'group/header pt-6' : 'group/header pt-16'}>
       {page.icon && (
         <button
           onClick={(e) => setIconPicker(e.currentTarget.getBoundingClientRect())}
@@ -35,6 +36,14 @@ export function PageHeader({ page }: { page: PageMeta }) {
             className="flex h-7 items-center gap-1.5 rounded-md px-2 text-sm text-faint hover:bg-hover hover:text-muted"
           >
             <Smile size={15} /> Icon hinzufügen
+          </button>
+        )}
+        {!page.cover && (
+          <button
+            onClick={() => void chooseCover(page.id)}
+            className="flex h-7 items-center gap-1.5 rounded-md px-2 text-sm text-faint hover:bg-hover hover:text-muted"
+          >
+            <ImageIcon size={15} /> Titelbild hinzufügen
           </button>
         )}
       </div>

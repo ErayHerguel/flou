@@ -1,3 +1,4 @@
+mod assets;
 mod db;
 mod paths;
 
@@ -47,6 +48,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app_quit,
+            assets::asset_import_bytes,
+            assets::asset_import_file,
+            assets::open_external,
             db::db_tx,
             paths::app_paths,
             paths::reveal_dir,

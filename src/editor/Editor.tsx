@@ -10,6 +10,7 @@ import { useUI } from '../store/ui';
 import { setActiveEditor } from './active';
 import { createExtensions } from './extensions';
 import { docText } from './text';
+import { Toolbar } from './Toolbar';
 
 type LoadState = { status: 'loading' } | { status: 'ready'; doc: JSONContent | null } | { status: 'error'; message: string };
 
@@ -48,7 +49,7 @@ export function Editor({ pageId }: { pageId: string }) {
 }
 
 function LoadedEditor({ pageId, initial }: { pageId: string; initial: JSONContent | null }) {
-  const extensions = useMemo(() => createExtensions(), []);
+  const extensions = useMemo(() => createExtensions(pageId), [pageId]);
   const editor = useEditor({
     extensions,
     content: initial,
@@ -71,5 +72,10 @@ function LoadedEditor({ pageId, initial }: { pageId: string; initial: JSONConten
     if (useUI.getState().consumeFocus(pageId, 'editor')) editor.commands.focus('start');
   }, [pendingFocus, pageId, editor]);
 
-  return <EditorContent editor={editor} />;
+  return (
+    <>
+      <EditorContent editor={editor} className="relative" />
+      <Toolbar editor={editor} />
+    </>
+  );
 }

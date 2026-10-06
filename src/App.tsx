@@ -9,6 +9,7 @@ import { createTauriDriver } from './db/tauriDriver';
 import { createPageAndOpen } from './features/actions';
 import { ensureSaved } from './features/lifecycle';
 import { installMenu } from './features/menu';
+import { initPaths } from './lib/assets';
 import { runFirstStart } from './features/onboarding/firstRun';
 import { PageView } from './features/page/PageView';
 import { TopBar } from './features/page/TopBar';
@@ -32,7 +33,8 @@ let booting: Promise<void> | null = null;
 /** Einmaliger Start: Datenbank öffnen (inkl. Migrationen), Einstellungen und Seiten laden. */
 function bootstrap(): Promise<void> {
   booting ??= (async () => {
-    setDriver(await createTauriDriver());
+    const [driver] = await Promise.all([createTauriDriver(), initPaths()]);
+    setDriver(driver);
     const settings = await loadSettings();
     useUI.getState().hydrate(settings);
     await usePages.getState().load();
