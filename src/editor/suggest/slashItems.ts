@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ChevronRight,
   Code2,
+  Database,
   FileText,
   Heading1,
   Heading2,
@@ -18,6 +19,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { pickImage } from '../../lib/assets';
+import { useDatabases } from '../../store/databases';
+import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
 import { createSubpageBlock } from './subpage';
 
@@ -151,7 +154,18 @@ export const SLASH_ITEMS: SlashItem[] = [
     group: 'Seiten',
     keywords: ['seite', 'page', 'unterseite', 'subpage'],
     icon: FileText,
-    run: (editor, range, ctx) => void createSubpageBlock(editor, range, ctx.pageId, 'page'),
+    run: (editor, range, ctx) =>
+      void createSubpageBlock(editor, range, ctx.pageId, (parentId) => usePages.getState().create({ parentId })),
+  },
+  {
+    id: 'database',
+    title: 'Datenbank',
+    description: 'Tabelle und Board als Unterseite',
+    group: 'Seiten',
+    keywords: ['datenbank', 'database', 'tabelle', 'table', 'board', 'kanban'],
+    icon: Database,
+    run: (editor, range, ctx) =>
+      void createSubpageBlock(editor, range, ctx.pageId, (parentId) => useDatabases.getState().createDatabase(parentId)),
   },
   {
     id: 'pageLink',

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getActiveEditor } from '../editor/active';
+import { useDatabases } from '../store/databases';
 import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
 import { quitApp } from './lifecycle';
@@ -26,6 +27,13 @@ const currentPage = () => {
 
 export async function createPageAndOpen(parentId: string | null): Promise<void> {
   const id = await usePages.getState().create({ parentId });
+  if (parentId) useUI.getState().setExpanded(parentId, true);
+  useUI.getState().open(id);
+  useUI.getState().requestFocus('title');
+}
+
+export async function createDatabaseAndOpen(parentId: string | null): Promise<void> {
+  const id = await useDatabases.getState().createDatabase(parentId);
   if (parentId) useUI.getState().setExpanded(parentId, true);
   useUI.getState().open(id);
   useUI.getState().requestFocus('title');
@@ -64,6 +72,14 @@ export const actions: AppAction[] = [
       const page = currentPage();
       return createPageAndOpen(page && page.type === 'page' ? page.id : null);
     },
+  },
+  {
+    id: 'page.newDatabase',
+    label: 'Neue Datenbank',
+    group: 'Seite',
+    keys: 'Mod+Alt+N',
+    menu: 'file',
+    run: () => createDatabaseAndOpen(null),
   },
   {
     id: 'page.rename',

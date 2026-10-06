@@ -1,5 +1,6 @@
 import { setDriver, type Driver } from '../db/driver';
 import { flush } from '../db/saveQueue';
+import { useDatabases } from '../store/databases';
 import { usePages } from '../store/pages';
 import { createTestDriver } from './sqliteDriver';
 
@@ -9,5 +10,6 @@ export async function freshDatabase(): Promise<Driver & ReturnType<typeof create
   const driver = createTestDriver();
   setDriver(driver);
   usePages.setState({ pages: {}, children: new Map() });
+  useDatabases.setState({ data: {} });
   return driver;
 }
