@@ -1,4 +1,4 @@
-import { ChevronsLeft, Monitor, Moon, Plus, Sun, Trash2, type LucideIcon } from 'lucide-react';
+import { ChevronsLeft, Monitor, Moon, Plus, Search, Sun, Trash2, type LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { APP_NAME } from '../../app.config';
 import logo from '../../assets/logo.svg';
@@ -21,6 +21,7 @@ export function Sidebar() {
   const [resizing, setResizing] = useState(false);
   const ThemeIcon = THEME_ICON[theme];
   const newPage = actionById('page.new');
+  const palette = actionById('palette.open');
 
   return (
     <aside
@@ -46,6 +47,9 @@ export function Sidebar() {
         </div>
 
         <div className="mt-1 flex flex-col px-2">
+          <SidebarButton icon={Search} onClick={() => void palette.run()} hint={palette.keys && formatCombo(palette.keys)}>
+            Suchen
+          </SidebarButton>
           <SidebarButton icon={Plus} onClick={() => void newPage.run()} hint={newPage.keys && formatCombo(newPage.keys)}>
             Neue Seite
           </SidebarButton>

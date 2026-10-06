@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getActiveEditor } from '../editor/active';
 import { useDatabases } from '../store/databases';
+import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles } from './transfer/transfer';
 import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
 import { quitApp } from './lifecycle';
@@ -54,6 +55,23 @@ function history(kind: 'undo' | 'redo') {
 }
 
 export const actions: AppAction[] = [
+  {
+    id: 'palette.open',
+    label: 'Befehlspalette',
+    group: 'Allgemein',
+    keys: 'Mod+K',
+    menu: 'go',
+    hideInPalette: true,
+    run: () => useUI.getState().setOverlay('palette'),
+  },
+  {
+    id: 'search.open',
+    label: 'Volltextsuche',
+    group: 'Allgemein',
+    keys: 'Mod+Shift+F',
+    menu: 'go',
+    run: () => useUI.getState().setOverlay('search'),
+  },
   {
     id: 'page.new',
     label: 'Neue Seite',
@@ -110,6 +128,35 @@ export const actions: AppAction[] = [
       const page = currentPage();
       if (page) return usePages.getState().trash(page.id);
     },
+  },
+  {
+    id: 'export.page',
+    label: 'Seite als Markdown exportieren …',
+    group: 'Seite',
+    keys: 'Mod+Shift+E',
+    menu: 'file',
+    run: exportCurrentPage,
+  },
+  {
+    id: 'export.workspace',
+    label: 'Workspace als Markdown exportieren …',
+    group: 'Allgemein',
+    menu: 'file',
+    run: exportWorkspace,
+  },
+  {
+    id: 'import.files',
+    label: 'Markdown-Dateien importieren …',
+    group: 'Allgemein',
+    menu: 'file',
+    run: importMarkdownFiles,
+  },
+  {
+    id: 'import.folder',
+    label: 'Markdown-Ordner importieren …',
+    group: 'Allgemein',
+    menu: 'file',
+    run: importFolder,
   },
   {
     id: 'trash.open',
@@ -182,6 +229,28 @@ export const actions: AppAction[] = [
     keys: 'Mod+]',
     menu: 'go',
     run: () => useUI.getState().goForward(),
+  },
+  {
+    id: 'shortcuts.open',
+    label: 'Tastenkürzel anzeigen',
+    group: 'Allgemein',
+    keys: 'Mod+/',
+    menu: 'help',
+    run: () => useUI.getState().setOverlay('shortcuts'),
+  },
+  {
+    id: 'backup.now',
+    label: 'Backup jetzt erstellen',
+    group: 'Allgemein',
+    menu: 'help',
+    run: backupNow,
+  },
+  {
+    id: 'backup.reveal',
+    label: 'Backup-Ordner im Finder zeigen',
+    group: 'Allgemein',
+    menu: 'help',
+    run: () => invoke('reveal_dir', { which: 'backups' }),
   },
   {
     id: 'app.dataFolder',

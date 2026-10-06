@@ -32,3 +32,23 @@ export function saveContent(
     })),
   ];
 }
+
+/** Inhalte mehrerer Seiten auf einmal (für den Export). Unlesbare Dokumente werden übersprungen. */
+export async function loadDocs(pageIds: string[]): Promise<Record<string, JSONContent | null>> {
+  const docs: Record<string, JSONContent | null> = {};
+  for (let i = 0; i < pageIds.length; i += 500) {
+    const chunk = pageIds.slice(i, i + 500);
+    const rows = await db().select<{ page_id: string; doc: string }>(
+      `SELECT page_id, doc FROM page_content WHERE page_id IN (${chunk.map(() => '?').join(', ')})`,
+      chunk,
+    );
+    for (const row of rows) {
+      try {
+        docs[row.page_id] = JSON.parse(row.doc) as JSONContent;
+      } catch {
+        docs[row.page_id] = null;
+      }
+    }
+  }
+  return docs;
+}

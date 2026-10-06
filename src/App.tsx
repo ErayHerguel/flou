@@ -11,8 +11,10 @@ import { ensureSaved } from './features/lifecycle';
 import { installMenu } from './features/menu';
 import { initPaths } from './lib/assets';
 import { runFirstStart } from './features/onboarding/firstRun';
+import { CommandPalette } from './features/palette/CommandPalette';
 import { PageView } from './features/page/PageView';
 import { TopBar } from './features/page/TopBar';
+import { ShortcutsDialog } from './features/shortcuts/ShortcutsDialog';
 import { useShortcuts } from './features/shortcuts/useShortcuts';
 import { Sidebar } from './features/sidebar/Sidebar';
 import { TrashDialog } from './features/trash/TrashDialog';
@@ -98,6 +100,8 @@ export function App() {
         <div className="min-h-0 flex-1">{currentId ? <PageView key={currentId} id={currentId} /> : <EmptyState />}</div>
       </main>
       {overlay === 'trash' && <TrashDialog />}
+      {(overlay === 'palette' || overlay === 'search') && <CommandPalette key={overlay} mode={overlay} />}
+      {overlay === 'shortcuts' && <ShortcutsDialog />}
       <ConfirmDialog />
       <Toasts />
     </div>

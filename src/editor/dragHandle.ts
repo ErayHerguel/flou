@@ -185,7 +185,7 @@ export const DragHandle = Extension.create({
           document.addEventListener('mousemove', onMouseMove);
           return {
             update(_, prev) {
-              if (!prev.doc.eq(view.state.doc)) hide();
+              if (prev.doc !== view.state.doc) hide();
             },
             destroy() {
               cancelAnimationFrame(frame);

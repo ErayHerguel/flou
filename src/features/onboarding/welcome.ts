@@ -22,7 +22,9 @@ export function welcomeDoc(): JSONContent {
       {
         type: 'bulletList',
         content: [
-          li(kbd('⌘N'), text(' legt eine neue Seite an, '), kbd('⇧⌘N'), text(' eine Unterseite.')),
+          li(kbd('⌘K'), text(' öffnet die Befehlspalette: Seiten finden, Volltext durchsuchen, Aktionen ausführen.')),
+          li(kbd('⌘N'), text(' legt eine neue Seite an, '), kbd('⇧⌘N'), text(' eine Unterseite, '), kbd('⌥⌘N'), text(' eine Datenbank.')),
+          li(kbd('⌘/'), text(' zeigt alle Tastenkürzel.')),
           li(text('Seiten in der Seitenleiste per Drag-and-drop sortieren und verschachteln.')),
           li(kbd('⌘\\'), text(' blendet die Seitenleiste ein und aus.')),
           li(text('Gelöschte Seiten landen im Papierkorb und lassen sich wiederherstellen.')),
@@ -47,6 +49,12 @@ export function welcomeDoc(): JSONContent {
           p(text('Fett, kursiv, durchgestrichen, '), text('Code', [{ type: 'code' }]), text(', '), text('Hervorhebung', [{ type: 'highlight' }]), text(' und Links. ⌘-Klick öffnet einen Link im Browser.')),
         ],
       },
+      h(2, 'Deine Daten'),
+      p(
+        text('Jede Seite lässt sich als Markdown exportieren ('),
+        kbd('⇧⌘E'),
+        text('), ebenso der ganze Workspace. Markdown-Dateien und -Ordner kannst du importieren. Einmal täglich legt die App ein Backup an und behält die letzten sieben.'),
+      ),
       {
         type: 'callout',
         attrs: { icon: '💡' },
