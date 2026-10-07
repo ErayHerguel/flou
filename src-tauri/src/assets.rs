@@ -112,14 +112,14 @@ pub fn file_import_bytes(app: AppHandle, request: Request<'_>) -> Result<StoredF
     }
 }
 
-/// Öffnet einen Anhang mit dem Standardprogramm.
+/// Öffnet einen Anhang mit dem Standardprogramm des Systems.
 #[tauri::command]
 pub fn open_asset(app: AppHandle, name: String) -> Result<(), String> {
     if name.contains(['/', '\\']) || name.starts_with('.') {
         return Err("Ungültiger Dateiname".into());
     }
     let path = assets_dir(&app)?.join(name);
-    std::process::Command::new("open").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+    tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string())
 }
 
 /// Öffnet einen Link im Standardbrowser. Nur auf ausdrückliche Aktion des Nutzers.
@@ -129,11 +129,7 @@ pub fn open_external(url: String) -> Result<(), String> {
     if !allowed.iter().any(|p| url.starts_with(p)) {
         return Err("Nur http(s)- und mailto-Links können geöffnet werden".into());
     }
-    std::process::Command::new("open")
-        .arg(&url)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    tauri_plugin_opener::open_url(&url, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

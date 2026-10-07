@@ -130,7 +130,7 @@ export async function importFolder(): Promise<void> {
   try {
     const dir = await pickFolder('Ordner mit Markdown-Dateien wählen');
     if (!dir) return;
-    const name = dir.split('/').filter(Boolean).pop() ?? 'Import';
+    const name = dir.split(/[\\/]/).filter(Boolean).pop() ?? 'Import';
     await importEntries(await invoke<InFile[]>('import_read', { paths: [dir] }), name);
   } catch (err) {
     reportError('Import fehlgeschlagen', err);

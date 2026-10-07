@@ -1,4 +1,5 @@
-# Baut Flou bei jedem Versions-Tag (z. B. v1.0.1) und veröffentlicht DMG und Installer als GitHub-Release.
+# Baut Flou bei jedem Versions-Tag (z. B. v1.1.0) für macOS und Windows und veröffentlicht ein GitHub-Release:
+# Flou.dmg (Mac), Flou-Setup.exe (Windows), install.sh (Mac-Installation per Terminal).
 name: Release
 
 on:
@@ -9,39 +10,80 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  macos:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
-
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-
       - run: npm ci
       - run: npm test
       - run: npm run build:mac
+      - name: Dateien sammeln
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Flou_${VERSION}_aarch64.dmg"
+          test -f "$DMG" || { echo "DMG fehlt – stimmt die Version (npm run version:set) mit dem Tag überein?"; exit 1; }
+          mkdir -p out
+          cp "$DMG" out/Flou.dmg
+          cp "$DMG" "out/Flou_${VERSION}_aarch64.dmg"
+          sed "s|__REPO__|${GITHUB_REPOSITORY}|g" website/install.sh > out/install.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: out/*
 
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm run build:win
+      - name: Dateien sammeln
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SETUP="src-tauri/target/release/bundle/nsis/Flou_${VERSION}_x64-setup.exe"
+          test -f "$SETUP" || { echo "Installer fehlt – stimmt die Version mit dem Tag überein?"; ls src-tauri/target/release/bundle/nsis; exit 1; }
+          mkdir -p out
+          cp "$SETUP" out/Flou-Setup.exe
+          cp "$SETUP" "out/Flou_${VERSION}_x64-setup.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+
+  publish:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
       - name: Release veröffentlichen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Flou_${VERSION}_aarch64.dmg"
-          test -f "$DMG" || { echo "DMG fehlt – stimmt die Version in package.json/tauri.conf.json mit dem Tag überein?"; exit 1; }
-          mkdir -p out
-          cp "$DMG" out/Flou.dmg
-          cp "$DMG" "out/Flou_${VERSION}_aarch64.dmg"
-          sed "s|__REPO__|${GITHUB_REPOSITORY}|g" website/install.sh > out/install.sh
-          gh release create "$GITHUB_REF_NAME" out/* \
+          gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" \
             --title "Flou $VERSION" \
-            --notes "Installation: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` oder Flou.dmg laden. Benötigt einen Mac mit Apple Silicon und macOS 13 oder neuer."
+            --notes "**Mac** (Apple Silicon, macOS 13+): Flou.dmg laden oder im Terminal \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\`
+
+          **Windows** (10/11, 64 Bit): Flou-Setup.exe laden und ausführen. Erscheint „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“."

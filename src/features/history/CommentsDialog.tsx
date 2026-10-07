@@ -5,6 +5,7 @@ import { Modal } from '../../components/Modal';
 import { getActiveEditor } from '../../editor/active';
 import type { CommentInfo } from '../../editor/nodes/comment';
 import { useUI } from '../../store/ui';
+import { formatCombo } from '../shortcuts/keys';
 
 const format = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -52,7 +53,7 @@ export function CommentsDialog() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-1">
         {comments.length === 0 && (
-          <div className="px-3 py-6 text-center text-sm text-faint">Keine Kommentare. Text markieren und ⇧⌘M drücken.</div>
+          <div className="px-3 py-6 text-center text-sm text-faint">Keine Kommentare. Text markieren und {formatCombo('Mod+Shift+M')} drücken.</div>
         )}
         {comments.map((c) => (
           <div key={c.id} className="group flex gap-2 rounded-md px-3 py-2 hover:bg-hover">

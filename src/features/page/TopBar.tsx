@@ -5,6 +5,7 @@ import { MenuList } from '../../components/MenuList';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { Popover, type Anchor } from '../../components/Popover';
 import { useSaveStatus } from '../../db/saveQueue';
+import { IS_MAC } from '../../lib/platform';
 import { ancestorIds } from '../../lib/tree';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
@@ -30,7 +31,7 @@ export function TopBar({ pageId }: { pageId: string | null }) {
     <header
       data-tauri-drag-region
       className="flex h-11 shrink-0 items-center gap-1 pr-3 print:hidden"
-      style={{ paddingLeft: sidebarOpen ? 12 : TRAFFIC_LIGHT_INSET }}
+      style={{ paddingLeft: sidebarOpen || !IS_MAC ? 12 : TRAFFIC_LIGHT_INSET }}
     >
       {!sidebarOpen && (
         <IconButton

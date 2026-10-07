@@ -1,5 +1,7 @@
+import { IS_MAC } from '../../lib/platform';
+
 /**
- * Tastenkürzel im Format "Mod+Shift+K". Mod ist auf dem Mac ⌘.
+ * Tastenkürzel im Format "Mod+Shift+K". Mod ist auf dem Mac ⌘, unter Windows Strg.
  * Satzzeichen werden über das erzeugte Zeichen ODER die physische Taste erkannt, damit
  * Kürzel wie ⌘\ oder ⌘/ auch mit deutscher Tastaturbelegung funktionieren.
  */
@@ -44,9 +46,15 @@ function parseCombo(spec: string): Combo {
   };
 }
 
-export function matches(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>, spec: string): boolean {
+export function matches(
+  e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>,
+  spec: string,
+  mac = IS_MAC,
+): boolean {
   const combo = parseCombo(spec);
-  if (e.metaKey !== combo.mod || e.ctrlKey) return false;
+  const mod = mac ? e.metaKey : e.ctrlKey;
+  const other = mac ? e.ctrlKey : e.metaKey;
+  if (mod !== combo.mod || other) return false;
 
   const symbolCode = SYMBOL_CODES[combo.key];
   if (symbolCode) {
@@ -64,10 +72,22 @@ export function matches(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctr
   return e.key === combo.key;
 }
 
-/** Darstellung für Menüs und Übersicht, z. B. "⌥⌘N". */
-export function formatCombo(spec: string): string {
+const DISPLAY_WINDOWS: Record<string, string> = {
+  Backspace: 'Rücktaste',
+  Enter: 'Eingabe',
+  Escape: 'Esc',
+  Tab: 'Tab',
+};
+
+/** Darstellung für Menüs und Übersicht, z. B. "⌥⌘N" bzw. "Strg+Alt+N". */
+export function formatCombo(spec: string, mac = IS_MAC): string {
   const c = parseCombo(spec);
-  const key = DISPLAY[c.key] ?? (c.key.length === 1 ? c.key.toUpperCase() : c.key);
+  const raw = c.key.length === 1 ? c.key.toUpperCase() : c.key;
+  if (!mac) {
+    const key = DISPLAY_WINDOWS[c.key] ?? DISPLAY[c.key] ?? raw;
+    return [c.mod && 'Strg', c.shift && 'Umschalt', c.alt && 'Alt', key].filter(Boolean).join('+');
+  }
+  const key = DISPLAY[c.key] ?? raw;
   return `${c.alt ? '⌥' : ''}${c.shift ? '⇧' : ''}${c.mod ? '⌘' : ''}${key}`;
 }
 

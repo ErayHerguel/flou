@@ -48,7 +48,7 @@ pub fn app_paths(app: AppHandle) -> Result<AppPaths, String> {
     })
 }
 
-/// Öffnet einen Ordner der App im Finder.
+/// Öffnet einen Ordner der App im Finder bzw. Explorer.
 #[tauri::command]
 pub fn reveal_dir(app: AppHandle, which: String) -> Result<(), String> {
     let dir = match which.as_str() {
@@ -56,9 +56,5 @@ pub fn reveal_dir(app: AppHandle, which: String) -> Result<(), String> {
         "backups" => backups_dir(&app)?,
         _ => return Err(format!("Unbekannter Ordner: {which}")),
     };
-    std::process::Command::new("open")
-        .arg(&dir)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    tauri_plugin_opener::open_path(&dir, None::<&str>).map_err(|e| e.to_string())
 }

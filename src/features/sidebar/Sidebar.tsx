@@ -6,6 +6,7 @@ import { IconButton } from '../../components/IconButton';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { usePages } from '../../store/pages';
 import { cx } from '../../lib/cx';
+import { IS_MAC } from '../../lib/platform';
 import { useUI, type Theme } from '../../store/ui';
 import { actionById } from '../actions';
 import { formatCombo } from '../shortcuts/keys';
@@ -42,7 +43,7 @@ export function Sidebar() {
       style={{ width: open ? width : 0 }}
     >
       <div className={cx('flex h-full flex-col overflow-hidden', !open && 'invisible')} style={{ width }}>
-        <div data-tauri-drag-region className="h-11 shrink-0" />
+        <div data-tauri-drag-region className={IS_MAC ? 'h-11 shrink-0' : 'h-2 shrink-0'} />
         <div className="group flex h-9 shrink-0 items-center gap-2 px-3">
           <img src={logo} alt="" className="h-5 w-5 rounded-[5px]" draggable={false} />
           <span className="flex-1 truncate text-sm font-semibold text-text">{APP_NAME}</span>

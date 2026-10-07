@@ -275,6 +275,15 @@ code {
 .hint {
   font-size: 14px;
 }
+.hint.center {
+  max-width: 640px;
+  margin: 24px auto 0;
+  color: var(--muted);
+  text-align: center;
+}
+.meta a {
+  color: inherit;
+}
 
 .faq {
   max-width: 720px;

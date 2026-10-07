@@ -1,6 +1,6 @@
 # Flou
 
-Lokale Notizen und Datenbanken für macOS (Apple Silicon): schnell, tastaturfreundlich, vollständig offline.
+Lokale Notizen und Datenbanken für macOS (Apple Silicon) und Windows: schnell, tastaturfreundlich, vollständig offline.
 Kein Konto, kein Server, keine Telemetrie. Alle Daten liegen auf deinem Mac.
 
 ## Funktionen
@@ -65,6 +65,13 @@ Smoke-Test des fertigen Builds (Bundle-ID, Architektur, Signatur, Start, Migrati
 npm run smoke
 ```
 
+## Windows
+
+- Installer: `Flou-Setup.exe` (NSIS, ohne Administratorrechte, Eintrag im Startmenü, Deinstallation über die Windows-Einstellungen).
+- Gebaut wird er automatisch vom Release-Workflow auf einem Windows-Runner, oder lokal auf einem Windows-PC mit `npm run build:win` (Ergebnis unter `src-tauri/target/release/bundle/nsis/`).
+- Daten liegen unter `%APPDATA%\app.flou.desktop`. Kürzel nutzen Strg statt ⌘.
+- Ohne kostenpflichtiges Code-Signing zeigt Windows beim ersten Start „Der Computer wurde durch Windows geschützt“ → „Weitere Informationen“ → „Trotzdem ausführen“.
+
 ## Installieren
 
 ```bash
@@ -82,7 +89,7 @@ xattr -cr /Applications/Flou.app
 ## Veröffentlichen (GitHub)
 
 - `website/`: Webseite mit Download und Installationsanleitung, wird per GitHub Pages veröffentlicht (`.github/workflows/pages.yml`).
-- `.github/workflows/release.yml`: baut bei jedem Tag `v*` die App auf einem Mac-Runner und veröffentlicht `Flou.dmg`, die versionierte DMG und `install.sh` als GitHub-Release.
+- `.github/workflows/release.yml`: baut bei jedem Tag `v*` die App auf einem Mac- und einem Windows-Runner und veröffentlicht `Flou.dmg`, `Flou-Setup.exe`, die versionierten Dateien und `install.sh` als GitHub-Release.
 - Installation für Nutzer ohne Gatekeeper-Warnung: `curl -fsSL https://github.com/<user>/<repo>/releases/latest/download/install.sh | bash`
 
 Neue Version:

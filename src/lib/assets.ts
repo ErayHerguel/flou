@@ -70,7 +70,7 @@ export async function importFileBlob(file: Blob, name: string): Promise<StoredFi
 export async function pickFile(): Promise<{ path: string; name: string } | null> {
   const selected = await open({ multiple: false, directory: false });
   if (typeof selected !== 'string') return null;
-  return { path: selected, name: selected.split('/').pop() ?? selected };
+  return { path: selected, name: selected.split(/[\\/]/).pop() ?? selected };
 }
 
 /** Öffnet einen Anhang mit dem Standardprogramm von macOS. */

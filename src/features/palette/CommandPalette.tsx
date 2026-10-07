@@ -42,7 +42,7 @@ function Snippet({ text }: { text: string }) {
 }
 
 /**
- * ⌘K: Seiten nach Titel (fuzzy) und Volltext (FTS5) finden, Aktionen ausführen, Seiten anlegen.
+ * Befehlspalette (Mod+K): Seiten nach Titel (fuzzy) und Volltext (FTS5) finden, Aktionen ausführen, Seiten anlegen.
  * "&gt;" am Anfang zeigt nur Aktionen.
  */
 export function CommandPalette({ mode }: { mode: 'palette' | 'search' }) {

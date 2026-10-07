@@ -5,6 +5,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import { openExternal } from '../lib/assets';
 import { newId } from '../lib/ids';
 import { cx } from '../lib/cx';
+import { formatCombo } from '../features/shortcuts/keys';
 import { reportError } from '../store/toast';
 
 interface MarkButton {
@@ -15,12 +16,12 @@ interface MarkButton {
 }
 
 const MARKS: MarkButton[] = [
-  { mark: 'bold', icon: Bold, label: 'Fett (⌘B)', toggle: (e) => e.chain().focus().toggleBold().run() },
-  { mark: 'italic', icon: Italic, label: 'Kursiv (⌘I)', toggle: (e) => e.chain().focus().toggleItalic().run() },
-  { mark: 'underline', icon: Underline, label: 'Unterstrichen (⌘U)', toggle: (e) => e.chain().focus().toggleUnderline().run() },
-  { mark: 'strike', icon: Strikethrough, label: 'Durchgestrichen (⇧⌘S)', toggle: (e) => e.chain().focus().toggleStrike().run() },
-  { mark: 'code', icon: Code, label: 'Code (⌘E)', toggle: (e) => e.chain().focus().toggleCode().run() },
-  { mark: 'highlight', icon: Highlighter, label: 'Hervorheben (⇧⌘H)', toggle: (e) => e.chain().focus().toggleHighlight().run() },
+  { mark: 'bold', icon: Bold, label: `Fett (${formatCombo('Mod+B')})`, toggle: (e) => e.chain().focus().toggleBold().run() },
+  { mark: 'italic', icon: Italic, label: `Kursiv (${formatCombo('Mod+I')})`, toggle: (e) => e.chain().focus().toggleItalic().run() },
+  { mark: 'underline', icon: Underline, label: `Unterstrichen (${formatCombo('Mod+U')})`, toggle: (e) => e.chain().focus().toggleUnderline().run() },
+  { mark: 'strike', icon: Strikethrough, label: `Durchgestrichen (${formatCombo('Mod+Shift+S')})`, toggle: (e) => e.chain().focus().toggleStrike().run() },
+  { mark: 'code', icon: Code, label: `Code (${formatCombo('Mod+E')})`, toggle: (e) => e.chain().focus().toggleCode().run() },
+  { mark: 'highlight', icon: Highlighter, label: `Hervorheben (${formatCombo('Mod+Shift+H')})`, toggle: (e) => e.chain().focus().toggleHighlight().run() },
 ];
 
 type ShouldShow = NonNullable<React.ComponentProps<typeof BubbleMenu>['shouldShow']>;
@@ -32,7 +33,7 @@ const shouldShow: ShouldShow = ({ editor, state }) => {
   return state.doc.textBetween(selection.from, selection.to).length > 0;
 };
 
-/** Schwebende Leiste bei Textauswahl. ⇧⌘K öffnet direkt die Link-Eingabe. */
+/** Schwebende Leiste bei Textauswahl. Mod+Shift+K öffnet direkt die Link-Eingabe. */
 export function Toolbar({ editor }: { editor: Editor }) {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const [mode, setMode] = useState<'marks' | 'link' | 'comment'>('marks');
@@ -91,7 +92,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
             ))}
             <div className="mx-0.5 h-5 w-px bg-border" />
             <button
-              title="Link (⇧⌘K)"
+              title={`Link (${formatCombo('Mod+Shift+K')})`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setLinkMode(true)}
               className={cx(
@@ -102,7 +103,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
               <Link2 size={15} /> Link
             </button>
             <button
-              title="Kommentar (⇧⌘M)"
+              title={`Kommentar (${formatCombo('Mod+Shift+M')})`}
               aria-label="Kommentar"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setMode('comment')}

@@ -107,7 +107,8 @@ export function planImport(files: InFile[], newId: () => string, existingTitles:
   for (const [key, file] of sources) {
     const node = nodes.get(key)!;
     const dir = parentOf(file.rel) ?? '';
-    const absDir = file.abs.slice(0, file.abs.lastIndexOf('/'));
+    const abs = file.abs.replace(/\\/g, '/');
+    const absDir = abs.slice(0, abs.lastIndexOf('/'));
     const parsed = fromMarkdown(file.content, {
       resolvePage(target, kind) {
         if (kind === 'title') return titles.get(target.toLowerCase()) ?? null;

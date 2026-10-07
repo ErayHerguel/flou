@@ -8,6 +8,7 @@ import { cx } from '../../lib/cx';
 import { confirmDialog } from '../../store/confirm';
 import { reportError, toast } from '../../store/toast';
 import { useUI } from '../../store/ui';
+import { formatCombo } from '../shortcuts/keys';
 
 const format = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -34,7 +35,7 @@ export function VersionsDialog() {
     if (!selected || !editor) return;
     const ok = await confirmDialog({
       title: 'Version wiederherstellen?',
-      message: `Der Inhalt wird auf den Stand vom ${format.format(selected.createdAt)} gesetzt. Mit ⌘Z lässt sich das rückgängig machen.`,
+      message: `Der Inhalt wird auf den Stand vom ${format.format(selected.createdAt)} gesetzt. Mit ${formatCombo('Mod+Z')} lässt sich das rückgängig machen.`,
       confirmLabel: 'Wiederherstellen',
     });
     if (!ok) return;

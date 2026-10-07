@@ -30,7 +30,7 @@ declare module '@tiptap/core' {
   }
 }
 
-/** Verbindet ⇧⌘K mit der Link-Eingabe der schwebenden Leiste. */
+/** Verbindet Mod+Shift+K (Link) und Mod+Shift+M (Kommentar) mit der schwebenden Leiste. */
 const ToolbarShortcuts = Extension.create<object, ToolbarStorage>({
   name: 'toolbar',
   addStorage: () => ({ openLink: null, openComment: null }),

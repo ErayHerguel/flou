@@ -11,6 +11,7 @@ import { createPageAndOpen } from './features/actions';
 import { ensureSaved } from './features/lifecycle';
 import { installMenu } from './features/menu';
 import { initPaths } from './lib/assets';
+import { IS_MAC } from './lib/platform';
 import { indexDatabaseValues } from './features/database/searchIndex';
 import { CommentsDialog } from './features/history/CommentsDialog';
 import { VersionsDialog } from './features/history/VersionsDialog';
@@ -56,7 +57,7 @@ function bootstrap(): Promise<void> {
       const parentId = prev.pages[current]?.parentId;
       forgetPages(isLive, parentId && isLive(parentId) ? parentId : firstRoot());
     });
-    installMenu().catch((err) => console.error('Menü konnte nicht erstellt werden', err));
+    if (IS_MAC) installMenu().catch((err) => console.error('Menü konnte nicht erstellt werden', err));
   })();
   return booting;
 }

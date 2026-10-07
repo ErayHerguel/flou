@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Popover, type Anchor } from '../../components/Popover';
 import { COMPUTED_TYPES, type CellValue, type Property, type SelectOption } from '../../db/database';
 import { openExternal } from '../../lib/assets';
+import { IS_MAC, isModClick } from '../../lib/platform';
 import { cx } from '../../lib/cx';
 import { pageTitle } from '../../components/PageIcon';
 import { fuzzyFilter } from '../../lib/fuzzy';
@@ -83,9 +84,9 @@ function display(property: Property, value: CellValue): ReactNode {
     return (
       <span
         className="truncate underline decoration-border-strong underline-offset-2"
-        title="⌘-Klick öffnet den Link"
+        title={IS_MAC ? '⌘-Klick öffnet den Link' : 'Strg-Klick öffnet den Link'}
         onClick={(e) => {
-          if (!e.metaKey) return;
+          if (!isModClick(e)) return;
           e.stopPropagation();
           const href = /^[a-z]+:/i.test(String(value)) ? String(value) : `https://${value}`;
           openExternal(href).catch((err) => reportError('Link konnte nicht geöffnet werden', err));

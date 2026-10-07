@@ -146,15 +146,13 @@ pub fn import_read(paths: Vec<String>) -> Result<Vec<InFile>, String> {
     Ok(out)
 }
 
-/// Zeigt eine vom Nutzer gewählte Export-Datei oder einen Ordner im Finder.
+/// Zeigt eine vom Nutzer gewählte Export-Datei oder einen Ordner im Finder bzw. Explorer.
 #[tauri::command]
 pub fn reveal_path(path: String) -> Result<(), String> {
-    std::process::Command::new("open")
-        .arg("-R")
-        .arg(&path)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    // Das Frontend setzt Pfade mit "/" zusammen; der Explorer braucht native Trenner.
+    #[cfg(windows)]
+    let path = path.replace('/', "\\");
+    tauri_plugin_opener::reveal_item_in_dir(PathBuf::from(path)).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

@@ -3,16 +3,18 @@ import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { loadDocs } from '../../db/content';
 import { loadSchema, loadValues } from '../../db/database';
 import { flush } from '../../db/saveQueue';
+import { IS_MAC } from '../../lib/platform';
 import { usePages } from '../../store/pages';
 import { reportError, toast } from '../../store/toast';
 import { useUI } from '../../store/ui';
 import { planExport, type ExportInput } from '../transfer/exportPlan';
 
-/** Druckdialog von macOS; dort lässt sich die Seite auch „Als PDF sichern“. */
+/** Druckdialog des Systems; dort lässt sich die Seite auch als PDF sichern. */
 export async function printPage(): Promise<void> {
   try {
     await flush();
-    await invoke('print_page');
+    if (IS_MAC) await invoke('print_page');
+    else window.print();
   } catch (err) {
     reportError('Drucken fehlgeschlagen', err);
   }
