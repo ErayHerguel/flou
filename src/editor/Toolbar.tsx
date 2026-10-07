@@ -1,8 +1,9 @@
 import type { Editor } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Bold, Code, ExternalLink, Highlighter, Italic, Link2, Strikethrough, Underline, type LucideIcon } from 'lucide-react';
+import { Bold, Check, Code, ExternalLink, Highlighter, Italic, Link2, MessageSquare, PenLine, Strikethrough, Underline, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { openExternal } from '../lib/assets';
+import { newId } from '../lib/ids';
 import { cx } from '../lib/cx';
 import { reportError } from '../store/toast';
 
@@ -34,19 +35,21 @@ const shouldShow: ShouldShow = ({ editor, state }) => {
 /** Schwebende Leiste bei Textauswahl. ⇧⌘K öffnet direkt die Link-Eingabe. */
 export function Toolbar({ editor }: { editor: Editor }) {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
-  const [linkMode, setLinkMode] = useState(false);
-  const options = useMemo(() => ({ placement: 'top' as const, offset: 8, onHide: () => setLinkMode(false) }), []);
+  const [mode, setMode] = useState<'marks' | 'link' | 'comment'>('marks');
+  const options = useMemo(() => ({ placement: 'top' as const, offset: 8, onHide: () => setMode('marks') }), []);
+  const setLinkMode = (on: boolean) => setMode(on ? 'link' : 'marks');
 
   useEffect(() => {
     const update = () => rerender();
-    const openLink = () => setLinkMode(true);
     editor.on('selectionUpdate', update);
     editor.on('transaction', update);
-    editor.storage.toolbar.openLink = openLink;
+    editor.storage.toolbar.openLink = () => setMode('link');
+    editor.storage.toolbar.openComment = () => setMode('comment');
     return () => {
       editor.off('selectionUpdate', update);
       editor.off('transaction', update);
       editor.storage.toolbar.openLink = null;
+      editor.storage.toolbar.openComment = null;
     };
   }, [editor]);
 
@@ -58,8 +61,17 @@ export function Toolbar({ editor }: { editor: Editor }) {
       className="z-40"
     >
       <div className="flex items-center gap-0.5 rounded-lg bg-surface p-1 shadow-popover">
-        {linkMode ? (
+        {mode === 'link' ? (
           <LinkInput editor={editor} onDone={() => setLinkMode(false)} />
+        ) : mode === 'comment' ? (
+          <CommentInput
+            initial=""
+            onDone={(text) => {
+              setMode('marks');
+              if (text) editor.chain().focus().setMark('comment', { id: newId(), text, createdAt: Date.now() }).run();
+              else editor.commands.focus();
+            }}
+          />
         ) : (
           <>
             {MARKS.map(({ mark, icon: Icon, label, toggle }) => (
@@ -89,10 +101,122 @@ export function Toolbar({ editor }: { editor: Editor }) {
             >
               <Link2 size={15} /> Link
             </button>
+            <button
+              title="Kommentar (⇧⌘M)"
+              aria-label="Kommentar"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setMode('comment')}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-hover"
+            >
+              <MessageSquare size={15} />
+            </button>
           </>
         )}
       </div>
     </BubbleMenu>
+  );
+}
+
+const commentShow: ShouldShow = ({ editor, state }) => state.selection.empty && editor.isActive('comment');
+const tableShow: ShouldShow = ({ editor }) => editor.isEditable && editor.isActive('table');
+
+/** Zeigt den Kommentar, wenn der Cursor in kommentiertem Text steht. */
+export function CommentBubble({ editor }: { editor: Editor }) {
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    editor.on('selectionUpdate', rerender);
+    return () => {
+      editor.off('selectionUpdate', rerender);
+    };
+  }, [editor]);
+  const attrs = editor.getAttributes('comment') as { text?: string; createdAt?: number };
+  const options = useMemo(() => ({ placement: 'bottom' as const, offset: 6, onHide: () => setEditing(false) }), []);
+  return (
+    <BubbleMenu editor={editor} pluginKey="commentBubble" shouldShow={commentShow} options={options} className="z-40">
+      <div className="w-[280px] rounded-lg bg-surface p-2 text-sm shadow-popover">
+        {editing ? (
+          <CommentInput
+            initial={attrs.text ?? ''}
+            onDone={(text) => {
+              setEditing(false);
+              if (text) editor.chain().focus().extendMarkRange('comment').updateAttributes('comment', { text }).run();
+            }}
+          />
+        ) : (
+          <>
+            <div className="mb-1 text-2xs text-faint">
+              {attrs.createdAt ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(attrs.createdAt) : 'Kommentar'}
+            </div>
+            <p className="whitespace-pre-wrap">{attrs.text}</p>
+            <div className="mt-2 flex justify-end gap-1">
+              <button onClick={() => setEditing(true)} className="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted hover:bg-hover">
+                <PenLine size={13} /> Bearbeiten
+              </button>
+              <button
+                onClick={() => editor.chain().focus().extendMarkRange('comment').unsetMark('comment').run()}
+                className="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted hover:bg-hover"
+              >
+                <Check size={13} /> Erledigt
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </BubbleMenu>
+  );
+}
+
+/** Zeilen und Spalten einer Tabelle bearbeiten. */
+export function TableMenu({ editor }: { editor: Editor }) {
+  const options = useMemo(() => ({ placement: 'top-start' as const, offset: 8 }), []);
+  const action = (label: string, run: () => boolean, danger = false) => (
+    <button
+      key={label}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={run}
+      className={cx('h-7 rounded-md px-2 text-xs hover:bg-hover', danger ? 'text-danger' : 'text-muted')}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <BubbleMenu editor={editor} pluginKey="tableMenu" shouldShow={tableShow} options={options} className="z-30">
+      <div className="flex items-center gap-0.5 rounded-lg bg-surface p-1 shadow-popover">
+        {action('+ Zeile', () => editor.chain().focus().addRowAfter().run())}
+        {action('+ Spalte', () => editor.chain().focus().addColumnAfter().run())}
+        {action('Zeile löschen', () => editor.chain().focus().deleteRow().run())}
+        {action('Spalte löschen', () => editor.chain().focus().deleteColumn().run())}
+        {action('Kopfzeile', () => editor.chain().focus().toggleHeaderRow().run())}
+        {action('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), true)}
+      </div>
+    </BubbleMenu>
+  );
+}
+
+function CommentInput({ initial, onDone }: { initial: string; onDone: (text: string) => void }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <div className="flex w-[280px] flex-col gap-1">
+      <textarea
+        autoFocus
+        rows={2}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onDone(value.trim());
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onDone('');
+          }
+        }}
+        placeholder="Kommentar … (↩ speichern, ⇧↩ neue Zeile)"
+        className="resize-none rounded-md bg-bg p-2 text-sm outline-none placeholder:text-faint"
+      />
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@ import {
   insertView,
   loadSchema,
   loadValues,
+  setSearchProps,
   setValue,
   TAG_COLORS,
   updateProperty,
@@ -19,7 +20,7 @@ import {
 } from '../db/database';
 import type { Statement } from '../db/driver';
 import { commit, schedule } from '../db/saveQueue';
-import { convertProperty } from '../features/database/query';
+import { convertProperty, valueText } from '../features/database/query';
 import { newId } from '../lib/ids';
 import { usePages } from './pages';
 import { reportError } from './toast';
@@ -39,9 +40,28 @@ export const PROPERTY_LABEL: Record<PropertyType, string> = {
   date: 'Datum',
   checkbox: 'Checkbox',
   url: 'URL',
+  relation: 'Relation',
+  rollup: 'Rollup',
+  formula: 'Formel',
 };
 
-const VIEW_LABEL: Record<ViewType, string> = { table: 'Tabelle', board: 'Board' };
+export const VIEW_LABEL: Record<ViewType, string> = {
+  table: 'Tabelle',
+  board: 'Board',
+  calendar: 'Kalender',
+  gallery: 'Galerie',
+  list: 'Liste',
+};
+
+const titleOf = (pageId: string) => usePages.getState().pages[pageId]?.title ?? '';
+
+/** Suchtext aller gespeicherten Werte eines Eintrags. */
+export function rowSearchText(data: Pick<DatabaseData, 'properties' | 'values'>, rowId: string): string {
+  return data.properties
+    .map((p) => valueText(p, data.values[rowId]?.[p.id], titleOf))
+    .filter(Boolean)
+    .join(' ');
+}
 
 /** Standard-Schema einer neuen Datenbank: Status, Tags, Datum sowie Tabellen- und Board-Ansicht. */
 function defaultSchema(databaseId: string): Pick<DatabaseData, 'properties' | 'views'> {
@@ -51,14 +71,15 @@ function defaultSchema(databaseId: string): Pick<DatabaseData, 'properties' | 'v
     name: 'Status',
     type: 'select',
     sortOrder: 0,
+    config: {},
     options: [
       { id: newId(), name: 'Offen', color: 'gray' },
       { id: newId(), name: 'In Arbeit', color: 'blue' },
       { id: newId(), name: 'Erledigt', color: 'green' },
     ],
   };
-  const tags: Property = { id: newId(), databaseId, name: 'Tags', type: 'multi_select', options: [], sortOrder: 1 };
-  const date: Property = { id: newId(), databaseId, name: 'Datum', type: 'date', options: [], sortOrder: 2 };
+  const tags: Property = { id: newId(), databaseId, name: 'Tags', type: 'multi_select', options: [], config: {}, sortOrder: 1 };
+  const date: Property = { id: newId(), databaseId, name: 'Datum', type: 'date', options: [], config: {}, sortOrder: 2 };
   return {
     properties: [status, tags, date],
     views: [
@@ -87,6 +108,16 @@ interface DatabasesState {
 }
 
 export const useDatabases = create<DatabasesState>((set, get) => {
+  /** Hält die Werte-Spalte der Volltextsuche für die genannten Einträge aktuell (gebündelt gespeichert). */
+  const reindex = (databaseId: string, rowIds: string[]) => {
+    for (const rowId of rowIds) {
+      schedule(`props:${rowId}`, () => {
+        const data = get().data[databaseId];
+        return data ? [setSearchProps(rowId, rowSearchText(data, rowId))] : [];
+      });
+    }
+  };
+
   const patch = (databaseId: string, fn: (d: DatabaseData) => DatabaseData) =>
     set((s) => (s.data[databaseId] ? { data: { ...s.data, [databaseId]: fn(s.data[databaseId]) } } : s));
 
@@ -131,6 +162,7 @@ export const useDatabases = create<DatabasesState>((set, get) => {
         extra: (page) => Object.entries(initial).map(([propertyId, value]) => setValue(page.id, propertyId, value)),
       });
       patch(databaseId, (d) => ({ ...d, values: { ...d.values, [id]: { ...initial } } }));
+      reindex(databaseId, [id]);
       return id;
     },
 
@@ -140,6 +172,7 @@ export const useDatabases = create<DatabasesState>((set, get) => {
         const current = get().data[databaseId]?.values[rowId]?.[propertyId] ?? null;
         return [setValue(rowId, propertyId, current)];
       });
+      reindex(databaseId, [rowId]);
     },
 
     async addProperty(databaseId, type) {
@@ -150,6 +183,7 @@ export const useDatabases = create<DatabasesState>((set, get) => {
         name: PROPERTY_LABEL[type],
         type,
         options: [],
+        config: type === 'rollup' ? { aggregate: 'count' } : {},
         sortOrder: data ? Math.max(-1, ...data.properties.map((p) => p.sortOrder)) + 1 : 0,
       };
       await mutate(databaseId, (d) => ({ ...d, properties: [...d.properties, property] }), [insertProperty(property)], 'Property anlegen');
@@ -158,6 +192,7 @@ export const useDatabases = create<DatabasesState>((set, get) => {
 
     updateProperty(property) {
       patch(property.databaseId, (d) => ({ ...d, properties: d.properties.map((p) => (p.id === property.id ? property : p)) }));
+      reindex(property.databaseId, Object.keys(get().data[property.databaseId]?.values ?? {}));
       schedule(`property:${property.id}`, () => {
         const current = get().data[property.databaseId]?.properties.find((p) => p.id === property.id);
         return current ? [updateProperty(current)] : [];
@@ -189,6 +224,7 @@ export const useDatabases = create<DatabasesState>((set, get) => {
         statements,
         'Typ ändern',
       );
+      reindex(property.databaseId, Object.keys(before));
     },
 
     async deleteOption(property, optionId) {
@@ -211,6 +247,7 @@ export const useDatabases = create<DatabasesState>((set, get) => {
         [updateProperty(next), ...Object.entries(changed).map(([rowId, value]) => setValue(rowId, property.id, value))],
         'Option löschen',
       );
+      reindex(property.databaseId, Object.keys(changed));
     },
 
     async deleteProperty(property) {
@@ -242,17 +279,19 @@ export const useDatabases = create<DatabasesState>((set, get) => {
         [deleteProperty(property.id), ...touched.map(updateView)],
         'Property löschen',
       );
+      reindex(property.databaseId, Object.keys(data.values));
     },
 
     async addView(databaseId, type) {
       const data = get().data[databaseId];
       const groupBy = type === 'board' ? (data?.properties.find((p) => p.type === 'select')?.id ?? null) : null;
+      const dateBy = type === 'calendar' ? (data?.properties.find((p) => p.type === 'date')?.id ?? null) : null;
       const view: View = {
         id: newId(),
         databaseId,
         name: VIEW_LABEL[type],
         type,
-        config: { ...emptyConfig(), groupBy },
+        config: { ...emptyConfig(), groupBy, dateBy },
         sortOrder: data ? Math.max(-1, ...data.views.map((v) => v.sortOrder)) + 1 : 0,
       };
       await mutate(databaseId, (d) => ({ ...d, views: [...d.views, view] }), [insertView(view)], 'Ansicht anlegen');

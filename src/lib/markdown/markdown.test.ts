@@ -65,13 +65,18 @@ describe('Markdown-Import', () => {
     const inline = doc.content![0].content!;
     expect(inline.filter((n) => n.type === 'pageLink')).toHaveLength(2);
     expect(inline.find((n) => n.marks?.some((m) => m.type === 'link'))?.text).toBe('extern');
-    expect(doc.content![1]).toEqual({ type: 'image', attrs: { src: 'a.png', alt: 'Bild' } });
+    expect(doc.content![1]).toEqual({ type: 'image', attrs: { src: 'a.png', alt: 'Bild', caption: '' } });
     expect(doc.content![2].type).toBe('paragraph');
   });
 
-  it('entfernt Front-Matter und wandelt Tabellen in Absätze', () => {
+  it('entfernt Front-Matter und liest Tabellen als Tabellenblock', () => {
     const doc = fromMarkdown('---\nStatus: Offen\n---\n| A | B |\n|---|---|\n| 1 | 2 |\n', parseCtx);
-    expect(doc.content!.map((n) => n.content?.map((c) => c.text).join(''))).toEqual(['A | B', '1 | 2']);
+    const [table] = doc.content!;
+    expect(table.type).toBe('table');
+    expect(table.content!.map((row) => row.content!.map((cell) => `${cell.type}:${cell.content![0].content?.[0]?.text}`))).toEqual([
+      ['tableHeader:A', 'tableHeader:B'],
+      ['tableCell:1', 'tableCell:2'],
+    ]);
   });
 });
 
@@ -92,7 +97,14 @@ describe('Round-Trip', () => {
         { type: 'toggle', attrs: { open: false }, content: [p(t('Kopf')), p(t('Inhalt'))] },
         { type: 'codeBlock', attrs: { language: 'python' }, content: [t('print("hi")')] },
         { type: 'horizontalRule' },
-        { type: 'image', attrs: { src: 'abc.png', alt: 'Diagramm' } },
+        { type: 'image', attrs: { src: 'abc.png', alt: 'Diagramm', caption: 'Abb. 1' } },
+        {
+          type: 'table',
+          content: [
+            { type: 'tableRow', content: [{ type: 'tableHeader', content: [p(t('Name'))] }, { type: 'tableHeader', content: [p(t('Wert'))] }] },
+            { type: 'tableRow', content: [{ type: 'tableCell', content: [p(t('a'))] }, { type: 'tableCell', content: [p(t('1', ['bold']))] }] },
+          ],
+        },
       ],
     };
     const markdown = toMarkdown(original, ctx);

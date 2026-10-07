@@ -2,6 +2,7 @@ import type { JSONContent } from '@tiptap/core';
 import type { CellValue, Property } from '../../db/database';
 import type { PageMeta } from '../../db/pages';
 import { escapeText, toMarkdown } from '../../lib/markdown/serialize';
+import { computeRows, valueText } from '../database/query';
 import type { ChildIndex, PageMap } from '../../lib/tree';
 
 export interface ExportInput {
@@ -39,30 +40,16 @@ export function relativeHref(fromDir: string, toFile: string): string {
   return [...Array(from.length - common).fill('..'), ...to.slice(common)].map(encodeURIComponent).join('/');
 }
 
-function formatValue(property: Property, value: CellValue | undefined): string {
-  if (value === null || value === undefined) return '';
-  const name = (id: unknown) => property.options.find((o) => o.id === id)?.name ?? '';
-  switch (property.type) {
-    case 'select':
-      return name(value);
-    case 'multi_select':
-      return (value as string[]).map(name).filter(Boolean).join(', ');
-    case 'checkbox':
-      return value === true ? '✓' : '';
-    default:
-      return String(value);
-  }
-}
-
 /** Tabellenzelle: Markdown maskieren (inklusive "|"), Zeilenumbrüche entfernen. */
 const cell = (text: string) => escapeText(text).replace(/\n/g, ' ');
 
-function frontMatter(properties: Property[], values: Record<string, CellValue>): string {
+function frontMatter(properties: Property[], values: Record<string, CellValue>, titleOf: (id: string) => string): string {
+  const formatValue = (p: Property, v: CellValue | undefined) => valueText(p, v, titleOf);
   const lines = properties
     .filter((p) => values[p.id] !== undefined && values[p.id] !== null)
     .map((p) => {
       const value = values[p.id];
-      if (p.type === 'multi_select') return `${JSON.stringify(p.name)}: ${JSON.stringify(formatValue(p, value).split(', ').filter(Boolean))}`;
+      if (p.type === 'multi_select' || p.type === 'relation') return `${JSON.stringify(p.name)}: ${JSON.stringify(formatValue(p, value).split(', ').filter(Boolean))}`;
       if (p.type === 'number' || p.type === 'checkbox') return `${JSON.stringify(p.name)}: ${String(value)}`;
       return `${JSON.stringify(p.name)}: ${JSON.stringify(formatValue(p, value))}`;
     });
@@ -74,8 +61,16 @@ function frontMatter(properties: Property[], values: Record<string, CellValue>):
  * Bilder in "assets/". Links zwischen exportierten Seiten werden zu relativen Markdown-Links.
  */
 export function planExport(rootIds: string[], input: ExportInput): ExportPlan {
-  const { pages, children, docs, databases } = input;
+  const { pages, children, docs } = input;
   const paths = new Map<string, string>();
+  const titleOf = (id: string) => pages[id]?.title.trim() || 'Ohne Titel';
+  // Rollups und Formeln einrechnen, damit der Export zeigt, was die App zeigt.
+  const databases: ExportInput['databases'] = {};
+  for (const [dbId, db] of Object.entries(input.databases)) {
+    const rows = Object.keys(db.values).map((id) => ({ id, title: titleOf(id), sortOrder: 0, createdAt: 0, values: db.values[id] }));
+    const computed = computeRows(rows, db.properties, { databases: input.databases, titleOf });
+    databases[dbId] = { properties: db.properties, values: Object.fromEntries(computed.map((r) => [r.id, r.values])) };
+  }
 
   const assign = (ids: string[], dir: string) => {
     const used = new Set<string>();
@@ -116,7 +111,7 @@ export function planExport(rootIds: string[], input: ExportInput): ExportPlan {
     const parent = page.parentId ? pages[page.parentId] : undefined;
     if (parent?.type === 'database' && databases[parent.id]) {
       const db = databases[parent.id];
-      content += frontMatter(db.properties, db.values[id] ?? {});
+      content += frontMatter(db.properties, db.values[id] ?? {}, titleOf);
     }
     content += `# ${escapeText(page.title.trim() || 'Ohne Titel')}\n\n`;
     if (page.cover) content += `![](${assetHref(page.cover)})\n\n`;
@@ -130,7 +125,7 @@ export function planExport(rootIds: string[], input: ExportInput): ExportPlan {
       for (const rowId of rows) {
         const link = ctx.page(rowId);
         const name = link.href ? `[${cell(link.title)}](${link.href})` : cell(link.title);
-        content += `| ${name} | ${props.map((p) => cell(formatValue(p, db?.values[rowId]?.[p.id]))).join(' | ')} |\n`;
+        content += `| ${name} | ${props.map((p) => cell(valueText(p, db?.values[rowId]?.[p.id], titleOf))).join(' | ')} |\n`;
       }
     } else {
       const doc = docs[id];

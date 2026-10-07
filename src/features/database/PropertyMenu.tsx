@@ -1,6 +1,9 @@
 import { ArrowDown, ArrowUp, Check, EyeOff, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import type { Property, PropertyType, View } from '../../db/database';
+import { useEffect, useState } from 'react';
+import type { Property, PropertyType, RollupAggregate, View } from '../../db/database';
+import { pageTitle } from '../../components/PageIcon';
+import { FORMULA_FUNCTIONS, parseFormula } from '../../lib/formula';
+import { usePages } from '../../store/pages';
 import { cx } from '../../lib/cx';
 import { confirmDialog } from '../../store/confirm';
 import { PROPERTY_LABEL, useDatabases } from '../../store/databases';
@@ -58,7 +61,7 @@ export function PropertyMenu({ property, view, onClose }: PropertyMenuProps) {
   };
 
   return (
-    <div className="w-[240px] p-1">
+    <div className="w-[260px] p-1">
       {property && (
         <input
           autoFocus
@@ -71,6 +74,7 @@ export function PropertyMenu({ property, view, onClose }: PropertyMenuProps) {
           className="mb-1 h-8 w-full rounded-md border border-border bg-bg px-2 text-sm outline-none focus:border-accent"
         />
       )}
+      {property && <PropertySettings property={property} />}
       {view && (
         <>
           <button className={itemClass} onClick={() => sortBy('asc')}>
@@ -114,4 +118,115 @@ export function PropertyMenu({ property, view, onClose }: PropertyMenuProps) {
       )}
     </div>
   );
+}
+
+const AGGREGATES: [RollupAggregate, string][] = [
+  ['count', 'Anzahl'],
+  ['sum', 'Summe'],
+  ['avg', 'Durchschnitt'],
+  ['min', 'Minimum'],
+  ['max', 'Maximum'],
+  ['show', 'Werte anzeigen'],
+];
+
+const fieldClass = 'h-7 w-full rounded-md border border-border bg-bg px-1.5 text-xs outline-none focus:border-accent';
+
+/** Einstellungen für Relation, Rollup und Formel. */
+function PropertySettings({ property }: { property: Property }) {
+  const store = useDatabases.getState();
+  const pages = usePages((s) => s.pages);
+  const data = useDatabases((s) => s.data[property.databaseId]);
+  const relation = data?.properties.find((p) => p.id === property.config.relationPropertyId);
+  const targetId = relation?.config.targetDatabaseId;
+  const targetData = useDatabases((s) => (targetId ? s.data[targetId] : undefined));
+  const [expression, setExpression] = useState(property.config.expression ?? '');
+  useEffect(() => {
+    if (targetId && !targetData) void store.load(targetId);
+  }, [targetId, targetData, store]);
+  const save = (config: Property['config']) => store.updateProperty({ ...property, config: { ...property.config, ...config } });
+
+  if (property.type === 'relation') {
+    const databases = Object.values(pages).filter((p) => p.type === 'database' && p.deletedAt === null);
+    return (
+      <div className="mb-1 px-2 py-1">
+        <div className="mb-1 text-2xs font-medium text-faint">Verknüpft mit</div>
+        <select
+          value={property.config.targetDatabaseId ?? ''}
+          onChange={(e) => {
+            save({ targetDatabaseId: e.target.value || undefined });
+            if (e.target.value) void store.load(e.target.value);
+          }}
+          className={fieldClass}
+        >
+          <option value="">Datenbank wählen …</option>
+          {databases.map((d) => (
+            <option key={d.id} value={d.id}>
+              {pageTitle(d)}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (property.type === 'rollup') {
+    const relations = data?.properties.filter((p) => p.type === 'relation') ?? [];
+    return (
+      <div className="mb-1 flex flex-col gap-1 px-2 py-1">
+        <div className="text-2xs font-medium text-faint">Über Relation</div>
+        <select value={property.config.relationPropertyId ?? ''} onChange={(e) => save({ relationPropertyId: e.target.value || undefined })} className={fieldClass}>
+          <option value="">{relations.length ? 'Relation wählen …' : 'Zuerst eine Relation anlegen'}</option>
+          {relations.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <select value={property.config.targetPropertyId ?? ''} onChange={(e) => save({ targetPropertyId: e.target.value || undefined })} className={fieldClass}>
+          <option value="">Titel der Einträge</option>
+          {(targetData?.properties ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <select value={property.config.aggregate ?? 'count'} onChange={(e) => save({ aggregate: e.target.value as RollupAggregate })} className={fieldClass}>
+          {AGGREGATES.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (property.type === 'formula') {
+    let error = '';
+    try {
+      if (expression.trim()) parseFormula(expression);
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+    return (
+      <div className="mb-1 px-2 py-1">
+        <div className="mb-1 text-2xs font-medium text-faint">Formel</div>
+        <textarea
+          value={expression}
+          rows={3}
+          spellCheck={false}
+          onChange={(e) => {
+            setExpression(e.target.value);
+            save({ expression: e.target.value });
+          }}
+          placeholder='z. B. prop("Preis") * prop("Menge")'
+          className="w-full resize-none rounded-md border border-border bg-bg p-1.5 font-mono text-xs outline-none focus:border-accent"
+        />
+        <div className={error ? 'text-2xs text-danger' : 'text-2xs text-faint'}>
+          {error || `prop("Name"), + - * / ^ == < && ||, ${FORMULA_FUNCTIONS.join(', ')}`}
+        </div>
+      </div>
+    );
+  }
+  return null;
 }

@@ -1,11 +1,17 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { Check } from 'lucide-react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Popover, type Anchor } from '../../components/Popover';
-import type { CellValue, Property, SelectOption } from '../../db/database';
+import { COMPUTED_TYPES, type CellValue, type Property, type SelectOption } from '../../db/database';
 import { openExternal } from '../../lib/assets';
 import { cx } from '../../lib/cx';
+import { pageTitle } from '../../components/PageIcon';
+import { fuzzyFilter } from '../../lib/fuzzy';
 import { useDatabases } from '../../store/databases';
+import { usePages } from '../../store/pages';
+import { useUI } from '../../store/ui';
 import { reportError } from '../../store/toast';
 import { OptionTag } from './OptionTag';
+import { computeRows } from './query';
 import { SelectPopover } from './SelectPopover';
 
 const dateFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
@@ -49,6 +55,11 @@ function Cell({ property, value, onChange, variant }: CellProps) {
       return <SelectCell property={property} value={value} onChange={onChange} variant={variant} />;
     case 'date':
       return <TextLikeCell property={property} value={value} onChange={onChange} variant={variant} inputType="date" />;
+    case 'relation':
+      return <RelationCell property={property} value={value} onChange={onChange} variant={variant} />;
+    case 'rollup':
+    case 'formula':
+      return <ComputedCell value={value} variant={variant} />;
     default:
       return <TextLikeCell property={property} value={value} onChange={onChange} variant={variant} />;
   }
@@ -174,6 +185,108 @@ function SelectCell({ property, value, onChange, variant }: CellProps) {
   );
 }
 
+function ComputedCell({ value, variant }: { value: CellValue; variant: CellProps['variant'] }) {
+  const text = value === null ? '' : typeof value === 'boolean' ? (value ? '✓' : '') : typeof value === 'number' ? numberFormat.format(value) : String(value);
+  if (variant === 'card') return text ? <div className="truncate text-xs text-muted">{text}</div> : null;
+  return (
+    <div className={cx(shell(variant), typeof value === 'number' && 'justify-end tabular-nums', text.startsWith('#Fehler') && 'text-danger')} title={text}>
+      <span className="truncate">{text || (variant === 'panel' ? <span className="text-faint">Leer</span> : null)}</span>
+    </div>
+  );
+}
+
+function RelationCell({ property, value, onChange, variant }: CellProps) {
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const close = useCallback(() => setAnchor(null), []);
+  const pages = usePages((s) => s.pages);
+  const ids = (Array.isArray(value) ? value : []).filter((id) => pages[id] && pages[id].deletedAt === null);
+  const chips = (
+    <span className={cx('flex min-w-0 gap-1', variant === 'card' ? 'flex-wrap' : 'overflow-hidden')}>
+      {ids.map((id) => (
+        <span
+          key={id}
+          onClick={(e) => {
+            e.stopPropagation();
+            useUI.getState().open(id);
+          }}
+          className="truncate rounded-sm px-1 text-sm underline decoration-border-strong underline-offset-2 hover:bg-hover"
+        >
+          {pageTitle(pages[id])}
+        </span>
+      ))}
+    </span>
+  );
+  if (variant === 'card') return ids.length ? chips : null;
+  return (
+    <>
+      <div role="button" tabIndex={0} onClick={(e) => setAnchor(e.currentTarget.getBoundingClientRect())} className={shell(variant)}>
+        {ids.length ? chips : variant === 'panel' ? <span className="text-faint">Leer</span> : null}
+      </div>
+      {anchor && (
+        <Popover anchor={anchor} onClose={close}>
+          <RelationPicker property={property} selected={ids} onChange={onChange} />
+        </Popover>
+      )}
+    </>
+  );
+}
+
+function RelationPicker({ property, selected, onChange }: { property: Property; selected: string[]; onChange: (v: CellValue) => void }) {
+  const [query, setQuery] = useState('');
+  const target = property.config.targetDatabaseId;
+  const rowIds = usePages((s) => (target ? s.children.get(target) : undefined));
+  const pages = usePages((s) => s.pages);
+  if (!target || !pages[target]) {
+    return <div className="w-[260px] p-3 text-xs text-muted">Bitte zuerst in den Property-Einstellungen eine Ziel-Datenbank wählen.</div>;
+  }
+  const rows = fuzzyFilter((rowIds ?? []).map((id) => pages[id]), query, (p) => [p.title]).slice(0, 50);
+  return (
+    <div className="w-[280px] p-1">
+      <input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={`In „${pageTitle(pages[target])}“ suchen …`}
+        className="mb-1 h-8 w-full rounded-md bg-bg px-2 text-sm outline-none placeholder:text-faint"
+      />
+      <div className="max-h-[260px] overflow-y-auto">
+        {rows.length === 0 && <div className="px-2 py-1.5 text-xs text-faint">Keine Einträge</div>}
+        {rows.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => onChange(selected.includes(p.id) ? selected.filter((id) => id !== p.id) : [...selected, p.id])}
+            className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-hover"
+          >
+            <span className="flex-1 truncate">{pageTitle(p)}</span>
+            {selected.includes(p.id) && <Check size={14} className="text-accent" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Wert einer berechneten Property für einen einzelnen Eintrag. */
+function useComputedValue(databaseId: string, rowId: string, property: Property): CellValue {
+  const all = useDatabases((s) => s.data);
+  const page = usePages((s) => s.pages[rowId]);
+  const pages = usePages((s) => s.pages);
+  return useMemo(() => {
+    const data = all[databaseId];
+    if (!data || !page) return null;
+    const [row] = computeRows(
+      [{ id: rowId, title: page.title, sortOrder: 0, createdAt: 0, values: data.values[rowId] ?? {} }],
+      data.properties,
+      { databases: all, titleOf: (id) => pages[id]?.title ?? '' },
+    );
+    return row.values[property.id] ?? null;
+  }, [all, databaseId, rowId, page, pages, property.id]);
+}
+
+function ComputedBoundCell({ databaseId, rowId, property, variant }: { databaseId: string; rowId: string; property: Property; variant: CellProps['variant'] }) {
+  return <ComputedCell value={useComputedValue(databaseId, rowId, property)} variant={variant} />;
+}
+
 /** Verbindet eine Zelle mit dem Datenbank-Store. */
 export function BoundCell({
   databaseId,
@@ -186,6 +299,13 @@ export function BoundCell({
   property: Property;
   variant: CellProps['variant'];
 }) {
+  if (COMPUTED_TYPES.includes(property.type)) {
+    return <ComputedBoundCell databaseId={databaseId} rowId={rowId} property={property} variant={variant} />;
+  }
+  return <StoredCell databaseId={databaseId} rowId={rowId} property={property} variant={variant} />;
+}
+
+function StoredCell({ databaseId, rowId, property, variant }: { databaseId: string; rowId: string; property: Property; variant: CellProps['variant'] }) {
   const value = useDatabases((s) => s.data[databaseId]?.values[rowId]?.[property.id] ?? null);
   return (
     <Cell

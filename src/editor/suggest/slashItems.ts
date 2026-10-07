@@ -3,7 +3,12 @@ import {
   AlertCircle,
   ChevronRight,
   Code2,
+  Columns2,
+  Columns3,
   Database,
+  Paperclip,
+  Sheet,
+  Table as TableIcon,
   FileText,
   Heading1,
   Heading2,
@@ -18,7 +23,8 @@ import {
   Type,
   type LucideIcon,
 } from 'lucide-react';
-import { pickImage } from '../../lib/assets';
+import { importFile, pickFile, pickImage } from '../../lib/assets';
+import { columnsContent } from '../nodes/columns';
 import { useDatabases } from '../../store/databases';
 import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
@@ -32,7 +38,7 @@ export interface SlashItem {
   id: string;
   title: string;
   description: string;
-  group: 'Grundblöcke' | 'Medien' | 'Seiten';
+  group: 'Grundblöcke' | 'Layout' | 'Medien' | 'Seiten';
   keywords: string[];
   icon: LucideIcon;
   run(editor: Editor, range: Range, ctx: SlashContext): void;
@@ -132,6 +138,33 @@ export const SLASH_ITEMS: SlashItem[] = [
     run: (editor, range) => block(editor, range).setHorizontalRule().run(),
   },
   {
+    id: 'table',
+    title: 'Tabelle',
+    description: 'Einfache Tabelle mit Kopfzeile',
+    group: 'Layout',
+    keywords: ['tabelle', 'table', 'grid', 'raster'],
+    icon: TableIcon,
+    run: (editor, range) => block(editor, range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+  },
+  {
+    id: 'columns2',
+    title: '2 Spalten',
+    description: 'Inhalt nebeneinander',
+    group: 'Layout',
+    keywords: ['spalten', 'columns', 'nebeneinander', 'layout'],
+    icon: Columns2,
+    run: (editor, range) => block(editor, range).insertContent(columnsContent(2)).run(),
+  },
+  {
+    id: 'columns3',
+    title: '3 Spalten',
+    description: 'Inhalt in drei Spalten',
+    group: 'Layout',
+    keywords: ['spalten', 'columns', 'drei', 'layout'],
+    icon: Columns3,
+    run: (editor, range) => block(editor, range).insertContent(columnsContent(3)).run(),
+  },
+  {
     id: 'image',
     title: 'Bild',
     description: 'Bild von deinem Mac einfügen',
@@ -145,6 +178,24 @@ export const SLASH_ITEMS: SlashItem[] = [
           if (src) editor.chain().focus().insertContent({ type: 'image', attrs: { src } }).run();
         })
         .catch((err) => reportError('Bild konnte nicht eingefügt werden', err));
+    },
+  },
+  {
+    id: 'file',
+    title: 'Datei',
+    description: 'Anhang; Audio und Video spielen direkt',
+    group: 'Medien',
+    keywords: ['datei', 'file', 'anhang', 'pdf', 'video', 'audio'],
+    icon: Paperclip,
+    run: (editor, range) => {
+      block(editor, range).run();
+      pickFile()
+        .then(async (picked) => {
+          if (!picked) return;
+          const stored = await importFile(picked.path);
+          editor.chain().focus().insertContent({ type: 'file', attrs: { src: stored.src, name: picked.name, size: stored.size } }).run();
+        })
+        .catch((err) => reportError('Datei konnte nicht eingefügt werden', err));
     },
   },
   {
@@ -166,6 +217,24 @@ export const SLASH_ITEMS: SlashItem[] = [
     icon: Database,
     run: (editor, range, ctx) =>
       void createSubpageBlock(editor, range, ctx.pageId, (parentId) => useDatabases.getState().createDatabase(parentId)),
+  },
+  {
+    id: 'inlineDatabase',
+    title: 'Datenbank im Text',
+    description: 'Tabelle, Board oder Kalender direkt hier',
+    group: 'Seiten',
+    keywords: ['datenbank', 'inline', 'eingebettet', 'tabelle', 'board', 'kalender'],
+    icon: Sheet,
+    run: (editor, range, ctx) => {
+      block(editor, range).run();
+      useDatabases
+        .getState()
+        .createDatabase(ctx.pageId)
+        .then((databaseId) => {
+          if (!editor.isDestroyed) editor.chain().focus().insertContent({ type: 'databaseBlock', attrs: { databaseId } }).run();
+        })
+        .catch((err) => reportError('Datenbank konnte nicht angelegt werden', err));
+    },
   },
   {
     id: 'pageLink',

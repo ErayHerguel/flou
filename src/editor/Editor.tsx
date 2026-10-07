@@ -10,7 +10,7 @@ import { useUI } from '../store/ui';
 import { setActiveEditor } from './active';
 import { createExtensions } from './extensions';
 import { docText } from './text';
-import { Toolbar } from './Toolbar';
+import { CommentBubble, TableMenu, Toolbar } from './Toolbar';
 
 type LoadState = { status: 'loading' } | { status: 'ready'; doc: JSONContent | null } | { status: 'error'; message: string };
 
@@ -76,6 +76,8 @@ function LoadedEditor({ pageId, initial }: { pageId: string; initial: JSONConten
     <>
       <EditorContent editor={editor} className="relative" />
       <Toolbar editor={editor} />
+      <CommentBubble editor={editor} />
+      <TableMenu editor={editor} />
     </>
   );
 }

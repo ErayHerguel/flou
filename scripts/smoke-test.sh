@@ -55,7 +55,7 @@ ok "Erster Start (inkl. Migrationen und Willkommensseite): ${FIRST} ms"
 DB="$DATA/flou.db"
 [[ -f "$DB" ]] || fail "Datenbank wurde nicht angelegt"
 MIGRATIONS=$(sqlite3 "$DB" "SELECT count(*) FROM _sqlx_migrations WHERE success = 1")
-[[ "$MIGRATIONS" == "3" ]] || fail "Erwartet 3 Migrationen, gefunden $MIGRATIONS"
+[[ "$MIGRATIONS" == "4" ]] || fail "Erwartet 4 Migrationen, gefunden $MIGRATIONS"
 ok "Migrationen angewendet ($MIGRATIONS)"
 
 [[ "$(sqlite3 "$DB" "SELECT count(*) FROM pages_fts WHERE pages_fts MATCH 'befehlspalette'")" == "1" ]] || fail "Volltextsuche liefert keinen Treffer"

@@ -63,10 +63,11 @@ describe('Export-Planung', () => {
       databaseId: 'db',
       name: 'Status',
       type: 'select',
+      config: {},
       sortOrder: 0,
       options: [{ id: 'o1', name: 'Offen', color: 'gray' }],
     };
-    const done: Property = { id: 'x', databaseId: 'db', name: 'Fertig', type: 'checkbox', sortOrder: 1, options: [] };
+    const done: Property = { id: 'x', databaseId: 'db', name: 'Fertig', type: 'checkbox', sortOrder: 1, options: [], config: {} };
     const pages = Object.fromEntries(
       [page('db', 'Aufgaben', null, { type: 'database' }), page('r', 'A | B', 'db')].map((p) => [p.id, p]),
     );

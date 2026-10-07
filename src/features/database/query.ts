@@ -1,4 +1,5 @@
 import {
+  COMPUTED_TYPES,
   isEmptyValue,
   TAG_COLORS,
   TITLE_PROPERTY,
@@ -11,6 +12,7 @@ import {
   type Sort,
   type ViewConfig,
 } from '../../db/database';
+import { runFormula, type FormulaValue } from '../../lib/formula';
 import { newId } from '../../lib/ids';
 
 export interface Row {
@@ -32,6 +34,9 @@ export const OPERATORS: Record<FilterType, FilterOperator[]> = {
   multi_select: ['contains', 'not_contains', 'is_empty', 'is_not_empty'],
   date: ['is', 'before', 'after', 'is_empty', 'is_not_empty'],
   checkbox: ['is_checked', 'is_unchecked'],
+  relation: ['is_empty', 'is_not_empty'],
+  rollup: ['is', 'is_not', 'gt', 'lt', 'gte', 'lte', 'is_empty', 'is_not_empty'],
+  formula: ['contains', 'not_contains', 'is', 'is_not', 'is_empty', 'is_not_empty'],
 };
 
 export const OPERATOR_LABEL: Record<FilterOperator, string> = {
@@ -82,6 +87,12 @@ export function matchesFilter(row: Row, filter: Filter, type: FilterType): boole
       if (op === 'is_not') return s !== q;
       return true;
     }
+    case 'formula': {
+      const text = String(v ?? '').toLocaleLowerCase('de');
+      const q = String(filter.value).toLocaleLowerCase('de');
+      return op === 'contains' ? text.includes(q) : op === 'not_contains' ? !text.includes(q) : op === 'is' ? text === q : text !== q;
+    }
+    case 'rollup':
     case 'number': {
       const target = Number(filter.value);
       if (typeof v !== 'number') return op === 'is_not';
@@ -128,6 +139,11 @@ function compareValues(a: CellValue, b: CellValue, type: FilterType, prop: Prope
       const first = (v: CellValue) => Math.min(...(v as string[]).map(optionIndex));
       return first(a) - first(b);
     }
+    case 'relation':
+      return (a as string[]).length - (b as string[]).length;
+    case 'rollup':
+    case 'formula':
+      return typeof a === 'number' && typeof b === 'number' ? a - b : collator.compare(String(a), String(b));
     default:
       return collator.compare(String(a), String(b));
   }
@@ -154,13 +170,99 @@ function compareRows(sorts: Sort[], props: Map<string, Property>) {
 const isKnown = (propertyId: string, props: Map<string, Property>) => propertyId === TITLE_PROPERTY || props.has(propertyId);
 
 /** Wendet Filter (UND-verknüpft) und Sortierung einer Ansicht an. */
-export function applyView(rows: Row[], properties: Property[], config: Pick<ViewConfig, 'filters' | 'sorts'>): Row[] {
+export function applyView(
+  rows: Row[],
+  properties: Property[],
+  config: Pick<ViewConfig, 'filters' | 'sorts'> & { filterMode?: ViewConfig['filterMode'] },
+): Row[] {
   const props = new Map(properties.map((p) => [p.id, p]));
   const filters = config.filters.filter((f) => isKnown(f.propertyId, props));
   const sorts = config.sorts.filter((s) => isKnown(s.propertyId, props));
-  return rows
-    .filter((row) => filters.every((f) => matchesFilter(row, f, filterType(f.propertyId, props))))
-    .sort(compareRows(sorts, props));
+  const test = (row: Row, f: Filter) => matchesFilter(row, f, filterType(f.propertyId, props));
+  const keep =
+    config.filterMode === 'or' && filters.length > 0
+      ? (row: Row) => filters.some((f) => test(row, f))
+      : (row: Row) => filters.every((f) => test(row, f));
+  return rows.filter(keep).sort(compareRows(sorts, props));
+}
+
+// ---------- Darstellung als Text (Suche, Export, Rollup „anzeigen“) ----------
+
+export function valueText(property: Property, value: CellValue | undefined, titleOf: (pageId: string) => string): string {
+  if (value === null || value === undefined) return '';
+  const name = (id: unknown) => property.options.find((o) => o.id === id)?.name ?? '';
+  switch (property.type) {
+    case 'select':
+      return name(value);
+    case 'multi_select':
+      return (value as string[]).map(name).filter(Boolean).join(', ');
+    case 'relation':
+      return (value as string[]).map(titleOf).filter(Boolean).join(', ');
+    case 'checkbox':
+      return value === true ? '✓' : '';
+    default:
+      return String(value);
+  }
+}
+
+// ---------- Berechnete Werte ----------
+
+export interface ComputeContext {
+  /** Daten aller geladenen Datenbanken (für Rollups über Relationen) */
+  databases: Record<string, { properties: Property[]; values: Record<string, Record<string, CellValue>> }>;
+  titleOf: (pageId: string) => string;
+}
+
+function rollup(prop: Property, row: Row, ctx: ComputeContext, own: Property[]): CellValue {
+  const relation = own.find((p) => p.id === prop.config.relationPropertyId && p.type === 'relation');
+  const ids = (relation ? row.values[relation.id] : null) as string[] | null;
+  const aggregate = prop.config.aggregate ?? 'count';
+  if (!relation || !ids?.length) return aggregate === 'count' ? 0 : null;
+  if (aggregate === 'count') return ids.length;
+  const target = ctx.databases[relation.config.targetDatabaseId ?? ''];
+  const targetProp = target?.properties.find((p) => p.id === prop.config.targetPropertyId);
+  const values = ids.map((id) => (targetProp ? target!.values[id]?.[targetProp.id] : ctx.titleOf(id)) ?? null);
+  if (aggregate === 'show') {
+    return values
+      .map((v) => (targetProp ? valueText(targetProp, v, ctx.titleOf) : String(v ?? '')))
+      .filter(Boolean)
+      .join(', ') || null;
+  }
+  const numbers = values.filter((v): v is number => typeof v === 'number');
+  if (!numbers.length) return null;
+  if (aggregate === 'sum') return numbers.reduce((a, b) => a + b, 0);
+  if (aggregate === 'avg') return Math.round((numbers.reduce((a, b) => a + b, 0) / numbers.length) * 100) / 100;
+  return aggregate === 'min' ? Math.min(...numbers) : Math.max(...numbers);
+}
+
+/** Ergänzt Rollups und Formeln in den Werten der Einträge (Formeln sehen Rollups und andere Formeln). */
+export function computeRows(rows: Row[], properties: Property[], ctx: ComputeContext): Row[] {
+  const computed = properties.filter((p) => COMPUTED_TYPES.includes(p.type));
+  if (!computed.length) return rows;
+  const byName = new Map(properties.map((p) => [p.name.toLowerCase(), p]));
+  return rows.map((row) => {
+    const values: Record<string, CellValue> = { ...row.values };
+    const next: Row = { ...row, values };
+    for (const prop of computed.filter((p) => p.type === 'rollup')) values[prop.id] = rollup(prop, next, ctx, properties);
+    const evaluating = new Set<string>();
+    const formulaValue = (prop: Property): CellValue => {
+      if (evaluating.has(prop.id)) return null; // Zyklen brechen ab
+      evaluating.add(prop.id);
+      const result = runFormula(prop.config.expression ?? '', (name): FormulaValue => {
+        if (name.toLowerCase() === 'name') return row.title;
+        const ref = byName.get(name.toLowerCase());
+        if (!ref) throw new Error(`Unbekannte Property „${name}“`);
+        if (ref.type === 'formula') return formulaValue(ref) as FormulaValue;
+        const v = values[ref.id];
+        if (ref.type === 'select' || ref.type === 'multi_select' || ref.type === 'relation') return valueText(ref, v, ctx.titleOf) || null;
+        return Array.isArray(v) ? v.join(', ') : (v ?? null);
+      });
+      evaluating.delete(prop.id);
+      return result instanceof Error ? `#Fehler: ${result.message}` : result;
+    };
+    for (const prop of computed.filter((p) => p.type === 'formula')) values[prop.id] = formulaValue(prop);
+    return next;
+  });
 }
 
 export interface Group {
@@ -206,6 +308,9 @@ export function convertProperty(
   toType: PropertyType,
   values: Record<string, CellValue>,
 ): { property: Property; values: Record<string, CellValue> } {
+  if (COMPUTED_TYPES.includes(toType) || toType === 'relation' || prop.type === 'relation' || COMPUTED_TYPES.includes(prop.type)) {
+    return { property: { ...prop, type: toType, options: [], config: {} }, values: {} };
+  }
   const keepOptions = (toType === 'select' || toType === 'multi_select') && (prop.type === 'select' || prop.type === 'multi_select');
   const options: SelectOption[] = keepOptions ? [...prop.options] : [];
   const converted: Record<string, CellValue> = {};

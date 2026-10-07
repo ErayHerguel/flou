@@ -147,8 +147,19 @@ function block(node: JSONContent, ctx: SerializeContext): string {
     }
     case 'horizontalRule':
       return '---';
-    case 'image':
-      return `![${escapeText(String(node.attrs?.alt ?? ''))}](${encodeHref(ctx.asset(String(node.attrs?.src)))})`;
+    case 'image': {
+      const caption = String(node.attrs?.caption ?? '');
+      const title = caption ? ` "${caption.replace(/"/g, '\\"')}"` : '';
+      return `![${escapeText(String(node.attrs?.alt ?? ''))}](${encodeHref(ctx.asset(String(node.attrs?.src)))}${title})`;
+    }
+    case 'file':
+      return `[📎 ${escapeText(String(node.attrs?.name ?? 'Datei'))}](${encodeHref(ctx.asset(String(node.attrs?.src)))})`;
+    case 'databaseBlock': {
+      const target = ctx.page(String(node.attrs?.databaseId));
+      return target.href ? `[${escapeText(target.title)}](${target.href})` : escapeText(target.title);
+    }
+    case 'table':
+      return table(node, ctx);
     case 'pageRef': {
       const target = ctx.page(String(node.attrs?.pageId));
       return target.href ? `[${escapeText(target.title)}](${target.href})` : escapeText(target.title);
@@ -156,6 +167,22 @@ function block(node: JSONContent, ctx: SerializeContext): string {
     default:
       return blocks(node.content ?? [], ctx);
   }
+}
+
+/** GFM-Tabelle; die erste Zeile ist immer die Kopfzeile. Mehrere Absätze einer Zelle werden zu <br>. */
+function table(node: JSONContent, ctx: SerializeContext): string {
+  const rows = (node.content ?? []).map((row) =>
+    (row.content ?? []).map((cell) =>
+      (cell.content ?? [])
+        .map((p) => inline(p.content, ctx))
+        .join('<br>')
+        .replace(/\n/g, ' '),
+    ),
+  );
+  if (rows.length === 0) return '';
+  const width = Math.max(...rows.map((r) => r.length));
+  const line = (cells: string[]) => `| ${Array.from({ length: width }, (_, i) => cells[i] ?? '').join(' | ')} |`;
+  return [line(rows[0]), `|${' --- |'.repeat(width)}`, ...rows.slice(1).map(line)].join('\n');
 }
 
 const DASH_LISTS = new Set(['bulletList', 'taskList']);

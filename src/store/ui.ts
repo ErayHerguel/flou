@@ -8,7 +8,7 @@ export interface FocusRequest {
   pageId: string;
   target: FocusTarget;
 }
-export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | null;
+export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | 'versions' | 'comments' | null;
 
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
@@ -22,6 +22,9 @@ interface UIState {
   theme: Theme;
   overlay: Overlay;
   expanded: Record<string, true>;
+  /** Startseite: wird beim Start geöffnet */
+  homeId: string | null;
+  favorites: string[];
   /** Offener Fokus-Wunsch an die Seitenansicht; wird von der Zielkomponente eingelöst und gelöscht. */
   pendingFocus: FocusRequest | null;
   hydrate(settings: Record<string, string>): void;
@@ -34,6 +37,8 @@ interface UIState {
   setOverlay(overlay: Overlay): void;
   setExpanded(id: string, open: boolean): void;
   requestFocus(target: FocusTarget): void;
+  setHome(id: string | null): void;
+  toggleFavorite(id: string): void;
   consumeFocus(pageId: string, target: FocusTarget): boolean;
 }
 
@@ -48,6 +53,8 @@ export const useUI = create<UIState>((set, get) => ({
   theme: 'system',
   overlay: null,
   expanded: {},
+  homeId: null,
+  favorites: [],
   pendingFocus: null,
 
   hydrate(settings) {
@@ -58,11 +65,20 @@ export const useUI = create<UIState>((set, get) => ({
     } catch {
       expanded = {};
     }
+    let favorites: string[] = [];
+    try {
+      favorites = JSON.parse(settings['nav.favorites'] ?? '[]');
+    } catch {
+      favorites = [];
+    }
+    const homeId = settings['nav.home'] || null;
     set({
+      homeId,
+      favorites,
       sidebarOpen: settings['ui.sidebarOpen'] !== 'false',
       sidebarWidth: Number.isFinite(width) && width > 0 ? clampWidth(width) : 260,
       theme: (['light', 'dark', 'system'] as const).find((t) => t === settings['ui.theme']) ?? 'system',
-      currentId: settings['ui.lastPage'] || null,
+      currentId: homeId ?? (settings['ui.lastPage'] || null),
       expanded,
     });
   },
@@ -130,6 +146,18 @@ export const useUI = create<UIState>((set, get) => ({
   requestFocus(target) {
     const pageId = get().currentId;
     if (pageId) set({ pendingFocus: { pageId, target } });
+  },
+
+  setHome(id) {
+    set({ homeId: id });
+    persist('nav.home', id ?? '');
+  },
+
+  toggleFavorite(id) {
+    const { favorites } = get();
+    const next = favorites.includes(id) ? favorites.filter((f) => f !== id) : [...favorites, id];
+    set({ favorites: next });
+    persist('nav.favorites', JSON.stringify(next));
   },
 
   consumeFocus(pageId, target) {

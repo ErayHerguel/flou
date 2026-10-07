@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { TITLE_PROPERTY, type Property } from '../../db/database';
-import { applyView, convertProperty, groupRows, matchesFilter, type Row } from './query';
+import { applyView, computeRows, convertProperty, groupRows, matchesFilter, type Row } from './query';
 
 const status: Property = {
   id: 'status',
   databaseId: 'db',
   name: 'Status',
   type: 'select',
+  config: {},
   sortOrder: 0,
   options: [
     { id: 'todo', name: 'Offen', color: 'gray' },
@@ -14,20 +15,21 @@ const status: Property = {
     { id: 'done', name: 'Erledigt', color: 'green' },
   ],
 };
-const prio: Property = { id: 'prio', databaseId: 'db', name: 'Priorität', type: 'number', options: [], sortOrder: 1 };
-const due: Property = { id: 'due', databaseId: 'db', name: 'Fällig', type: 'date', options: [], sortOrder: 2 };
+const prio: Property = { id: 'prio', databaseId: 'db', name: 'Priorität', type: 'number', options: [], config: {}, sortOrder: 1 };
+const due: Property = { id: 'due', databaseId: 'db', name: 'Fällig', type: 'date', options: [], config: {}, sortOrder: 2 };
 const tags: Property = {
   id: 'tags',
   databaseId: 'db',
   name: 'Tags',
   type: 'multi_select',
+  config: {},
   sortOrder: 3,
   options: [
     { id: 'a', name: 'Arbeit', color: 'red' },
     { id: 'p', name: 'Privat', color: 'blue' },
   ],
 };
-const done: Property = { id: 'ok', databaseId: 'db', name: 'Fertig', type: 'checkbox', options: [], sortOrder: 4 };
+const done: Property = { id: 'ok', databaseId: 'db', name: 'Fertig', type: 'checkbox', options: [], config: {}, sortOrder: 4 };
 const props = [status, prio, due, tags, done];
 
 const row = (id: string, title: string, values: Row['values'], sortOrder = 0): Row => ({ id, title, values, sortOrder, createdAt: 0 });
@@ -105,5 +107,39 @@ describe('Typumwandlung', () => {
     expect(convertProperty(text, 'checkbox', { a: 'ja', b: 'nein' }).values).toEqual({ a: true });
     expect(convertProperty(text, 'date', { a: '2026-05-01', b: 'morgen' }).values).toEqual({ a: '2026-05-01' });
     expect(convertProperty(prio, 'text', { a: 2 }).values).toEqual({ a: '2' });
+  });
+});
+
+describe('ODER-Filter und berechnete Werte', () => {
+  it('verknüpft Filter mit ODER', () => {
+    const result = applyView(rows, props, {
+      filterMode: 'or',
+      filters: [
+        { id: 'a', propertyId: 'status', operator: 'is', value: 'todo' },
+        { id: 'b', propertyId: 'ok', operator: 'is_checked', value: null },
+      ],
+      sorts: [],
+    });
+    expect(ids(result)).toEqual(['2', '3']);
+  });
+
+  it('berechnet Formeln und Rollups über Relationen', () => {
+    const rel: Property = { id: 'rel', databaseId: 'db', name: 'Teile', type: 'relation', options: [], config: { targetDatabaseId: 'parts' }, sortOrder: 5 };
+    const cost: Property = { id: 'cost', databaseId: 'parts', name: 'Kosten', type: 'number', options: [], config: {}, sortOrder: 0 };
+    const sum: Property = { id: 'sum', databaseId: 'db', name: 'Summe', type: 'rollup', options: [], config: { relationPropertyId: 'rel', targetPropertyId: 'cost', aggregate: 'sum' }, sortOrder: 6 };
+    const formula: Property = { id: 'f', databaseId: 'db', name: 'Info', type: 'formula', options: [], config: { expression: 'prop("Status") + ": " + (prop("Summe") * 2)' }, sortOrder: 7 };
+    const all = [...props, rel, sum, formula];
+    const [result] = computeRows([row('1', 'X', { status: 'doing', rel: ['p1', 'p2'] })], all, {
+      databases: { parts: { properties: [cost], values: { p1: { cost: 5 }, p2: { cost: 7.5 } } } },
+      titleOf: () => '',
+    });
+    expect(result.values.sum).toBe(12.5);
+    expect(result.values.f).toBe('In Arbeit: 25');
+  });
+
+  it('zeigt Formelfehler als Wert statt abzustürzen', () => {
+    const bad: Property = { id: 'f', databaseId: 'db', name: 'F', type: 'formula', options: [], config: { expression: 'prop("Gibtsnicht") + 1' }, sortOrder: 0 };
+    const [r] = computeRows([row('1', 'X', {})], [bad], { databases: {}, titleOf: () => '' });
+    expect(String(r.values.f)).toContain('#Fehler');
   });
 });

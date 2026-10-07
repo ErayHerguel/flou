@@ -51,7 +51,20 @@ export function FilterMenu({ view, properties }: { view: View; properties: Prope
         const operators = OPERATORS[filterType(filter.propertyId, props)];
         return (
           <div key={filter.id} className="mb-1.5 flex items-center gap-1.5">
-            <span className="w-8 shrink-0 text-right text-xs text-faint">{i === 0 ? 'Wo' : 'und'}</span>
+            {i === 1 ? (
+              <select
+                value={view.config.filterMode}
+                onChange={(e) =>
+                  useDatabases.getState().updateView({ ...view, config: { ...view.config, filterMode: e.target.value as 'and' | 'or' } })
+                }
+                className={`${selectClass} w-12 shrink-0 px-0.5`}
+              >
+                <option value="and">und</option>
+                <option value="or">oder</option>
+              </select>
+            ) : (
+              <span className="w-12 shrink-0 text-right text-xs text-faint">{i === 0 ? 'Wo' : view.config.filterMode === 'or' ? 'oder' : 'und'}</span>
+            )}
             <select
               value={filter.propertyId}
               onChange={(e) => {

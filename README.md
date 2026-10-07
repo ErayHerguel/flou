@@ -6,11 +6,14 @@ Kein Konto, kein Server, keine Telemetrie. Alle Daten liegen auf deinem Mac.
 ## Funktionen
 
 - **Seiten** in beliebiger Verschachtelung, Drag-and-drop in der Seitenleiste, Papierkorb mit Wiederherstellen
-- **Block-Editor**: Absatz, Überschriften, Listen, To-dos, Toggle, Zitat, Callout, Code mit Syntax-Highlighting, Trenner, Bilder, Unterseiten
+- **Block-Editor**: Absatz, Überschriften, Listen, To-dos, Toggle, Zitat, Callout, Code mit Syntax-Highlighting, Trenner, Tabellen, 2/3 Spalten, Bilder mit Unterschrift, Dateianhänge (Audio/Video spielen direkt), Unterseiten, eingebettete Datenbanken
+- **Kommentare** an Textstellen (`⇧⌘M`) und **Versionsverlauf** je Seite (eine Version je 10 Minuten, die letzten 50)
 - **Slash-Menü** (`/`) mit Fuzzy-Suche, **Markdown-Shortcuts** beim Tippen, schwebende Formatierungsleiste
 - **Seitenlinks** mit `[[` und Backlinks am Seitenende
-- **Datenbanken** mit Text, Zahl, Auswahl, Mehrfachauswahl, Datum, Checkbox und URL. Ansichten als Tabelle und Kanban-Board; Filter, Sortierung und Spaltenbreiten werden pro Ansicht gespeichert
+- **Datenbanken** mit Text, Zahl, Auswahl, Mehrfachauswahl, Datum, Checkbox, URL, Relation, Rollup und Formel. Ansichten: Tabelle, Kanban-Board, Kalender, Galerie, Liste; Filter (UND/ODER), Sortierung und Spaltenbreiten pro Ansicht; Werte sind durchsuchbar
 - **Befehlspalette** (`⌘K`) und **Volltextsuche** (SQLite FTS5)
+- **Startseite** und **Favoriten**, Seitenbaum per Tastatur (`⇧⌘L`, dann Pfeiltasten, Enter, F2)
+- **Teilen**: Drucken bzw. „Als PDF sichern“ (`⌘P`), Seite als Markdown kopieren (`⇧⌘C`)
 - **Markdown-Export und -Import** (einzelne Seiten, ganzer Workspace, Ordner)
 - **Automatisches Backup**: täglich, die letzten 7 bleiben erhalten
 - Helles, dunkles und System-Theme; Autosave ohne Speichern-Knopf
@@ -129,6 +132,11 @@ Zusätzlich bietet der Markdown-Export (`⇧⌘E` für eine Seite, „Workspace 
 | Block verschieben | `⇧⌘↑` / `⇧⌘↓` |
 | Link setzen | `⇧⌘K` |
 | Seite exportieren | `⇧⌘E` |
+| Drucken / PDF | `⌘P` |
+| Als Markdown kopieren | `⇧⌘C` |
+| Startseite | `⇧⌘O` |
+| Favorit an/aus | `⌥⌘S` |
+| Kommentar | `⇧⌘M` |
 | Alle Kürzel | `⌘/` |
 
 ## Umbenennen
@@ -156,6 +164,16 @@ src-tauri/           Rust-Shell
 scripts/             Icon, Installation, Smoke-Test, Lizenzprüfung
 brand/               Logo (SVG)
 ```
+
+## Formeln
+
+Formel-Properties rechnen pro Eintrag, z. B. `prop("Preis") * prop("Menge")` oder `if(prop("Status") == "Erledigt", "✓", "")`. Verfügbar: `+ - * / % ^`, Vergleiche, `&& || !`, sowie `if, concat, length, lower, upper, contains, empty, round, floor, ceil, abs, sqrt, min, max, toNumber, format, today, dateAdd, dateBetween`.
+
+## Bewusst nicht enthalten
+
+- Notarisierung durch Apple (braucht ein kostenpflichtiges Entwicklerkonto)
+- Automatische Updates (bräuchten Netzwerkzugriff)
+- Mehrere Fenster gleichzeitig (gleichzeitiges Bearbeiten derselben Seite könnte Daten überschreiben)
 
 ## Datenschutz und Netzwerk
 

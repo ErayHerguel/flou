@@ -11,6 +11,7 @@
     "core:menu:default",
     "sql:allow-load",
     "sql:allow-select",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "clipboard-manager:allow-write-text"
   ]
 }

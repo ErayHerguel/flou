@@ -137,12 +137,15 @@ describe('Slash-Befehle', () => {
     ['quote', 'blockquote'],
     ['code', 'codeBlock'],
     ['bullet', 'bulletList'],
+    ['table', 'table'],
+    ['columns2', 'columns'],
   ] as const) {
     it(`/${id} erzeugt ${type} und entfernt das Slash-Zeichen`, () => {
       editor = createTestEditor({ type: 'doc', content: [p('Text/')] });
       cursorInBlock(0);
       run(id);
-      expect(topLevelTypes(editor)[0]).toBe(type);
+      // Blöcke wie Tabelle/Spalten werden nach dem nicht-leeren Absatz eingefügt.
+      expect(topLevelTypes(editor)).toContain(type);
       expect(editor.state.doc.textContent).toBe('Text');
     });
   }
@@ -179,5 +182,14 @@ describe('Seitenlinks', () => {
   it('übernimmt beim Einfügen keine externen Bilder', () => {
     editor = createTestEditor('<p>a</p><img src="https://example.com/x.png"><p>b</p>');
     expect(topLevelTypes(editor)).not.toContain('image');
+  });
+});
+
+describe('Kommentare', () => {
+  it('speichert Kommentare als Markierung im Dokument', () => {
+    editor = createTestEditor({ type: 'doc', content: [p('Wichtiger Satz')] });
+    editor.chain().setTextSelection({ from: 1, to: 10 }).setMark('comment', { id: 'c1', text: 'Prüfen', createdAt: 1 }).run();
+    const marks = editor.getJSON().content![0].content![0].marks!;
+    expect(marks[0]).toEqual({ type: 'comment', attrs: { id: 'c1', text: 'Prüfen', createdAt: 1 } });
   });
 });

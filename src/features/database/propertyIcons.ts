@@ -1,4 +1,4 @@
-import { AlignLeft, Calendar, CircleChevronDown, Hash, Link, SquareCheck, Tags, Type, type LucideIcon } from 'lucide-react';
+import { AlignLeft, ArrowUpRight, Calendar, CircleChevronDown, Hash, Link, Sigma, SquareCheck, SquareFunction, Tags, Type, type LucideIcon } from 'lucide-react';
 import type { PropertyType } from '../../db/database';
 
 export const PROPERTY_ICON: Record<PropertyType, LucideIcon> = {
@@ -9,8 +9,11 @@ export const PROPERTY_ICON: Record<PropertyType, LucideIcon> = {
   date: Calendar,
   checkbox: SquareCheck,
   url: Link,
+  relation: ArrowUpRight,
+  rollup: Sigma,
+  formula: SquareFunction,
 };
 
 export const TITLE_ICON = Type;
 
-export const PROPERTY_TYPES: PropertyType[] = ['text', 'number', 'select', 'multi_select', 'date', 'checkbox', 'url'];
+export const PROPERTY_TYPES: PropertyType[] = ['text', 'number', 'select', 'multi_select', 'date', 'checkbox', 'url', 'relation', 'rollup', 'formula'];

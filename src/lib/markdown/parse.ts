@@ -113,7 +113,7 @@ function imageBlock(children: Token[], ctx: ParseContext): JSONContent | null {
   const src = String(image.attrGet('src') ?? '');
   const placeholder = EXTERNAL.test(src) ? null : ctx.image(src);
   if (!placeholder) return null;
-  return { type: 'image', attrs: { src: placeholder, alt: image.content } };
+  return { type: 'image', attrs: { src: placeholder, alt: image.content, caption: String(image.attrGet('title') ?? '') } };
 }
 
 /** Wandelt eine Token-Folge zwischen open/close in Blöcke. */
@@ -260,23 +260,22 @@ function list(tokens: Token[], ctx: ParseContext): JSONContent {
   };
 }
 
-/** Tabellen gibt es im Editor nicht: jede Zeile wird zu einem Absatz mit " | " als Trenner. */
+/** GFM-Tabelle → Tabellenblock (Kopfzeile aus thead). */
 function table(tokens: Token[], ctx: ParseContext): JSONContent[] {
   const rows: JSONContent[] = [];
-  let cells: JSONContent[][] = [];
+  let cells: JSONContent[] = [];
+  let header = false;
   for (const t of tokens) {
+    if (t.type === 'thead_open') header = true;
+    if (t.type === 'tbody_open') header = false;
     if (t.type === 'tr_open') cells = [];
-    if (t.type === 'inline') cells.push(inline(t.children ?? [], ctx));
-    if (t.type === 'tr_close') {
-      const content: JSONContent[] = [];
-      cells.forEach((cell, i) => {
-        if (i > 0) content.push({ type: 'text', text: ' | ' });
-        content.push(...cell);
-      });
-      rows.push(paragraph(content));
+    if (t.type === 'inline') {
+      const content = inline(t.children ?? [], ctx);
+      cells.push({ type: header ? 'tableHeader' : 'tableCell', content: [paragraph(content)] });
     }
+    if (t.type === 'tr_close') rows.push({ type: 'tableRow', content: cells });
   }
-  return rows;
+  return rows.length ? [{ type: 'table', content: rows }] : [];
 }
 
 /** Entfernt YAML-Front-Matter am Anfang. */

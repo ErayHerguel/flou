@@ -1,8 +1,10 @@
-import { ChevronsLeft, Monitor, Moon, Plus, Search, Sun, Trash2, type LucideIcon } from 'lucide-react';
+import { ChevronsLeft, House, Monitor, Moon, Plus, Search, Sun, Trash2, type LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { APP_NAME } from '../../app.config';
 import logo from '../../assets/logo.svg';
 import { IconButton } from '../../components/IconButton';
+import { PageIcon, pageTitle } from '../../components/PageIcon';
+import { usePages } from '../../store/pages';
 import { cx } from '../../lib/cx';
 import { useUI, type Theme } from '../../store/ui';
 import { actionById } from '../actions';
@@ -22,12 +24,18 @@ export function Sidebar() {
   const ThemeIcon = THEME_ICON[theme];
   const newPage = actionById('page.new');
   const palette = actionById('palette.open');
+  const homeId = useUI((s) => s.homeId);
+  const favorites = useUI((s) => s.favorites);
+  const currentId = useUI((s) => s.currentId);
+  const pages = usePages((s) => s.pages);
+  const liveFavorites = favorites.filter((id) => pages[id] && pages[id].deletedAt === null);
+  const hasHome = Boolean(homeId && pages[homeId] && pages[homeId].deletedAt === null);
 
   return (
     <aside
       aria-hidden={!open}
       className={cx(
-        'relative h-full shrink-0 bg-sidebar',
+        'relative h-full shrink-0 bg-sidebar print:hidden',
         !resizing && 'transition-[width] duration-150',
         open && 'border-r border-border',
       )}
@@ -53,7 +61,33 @@ export function Sidebar() {
           <SidebarButton icon={Plus} onClick={() => void newPage.run()} hint={newPage.keys && formatCombo(newPage.keys)}>
             Neue Seite
           </SidebarButton>
+          {hasHome && (
+            <SidebarButton icon={House} onClick={() => useUI.getState().open(homeId!)} hint={formatCombo('Mod+Shift+O')}>
+              Startseite
+            </SidebarButton>
+          )}
         </div>
+
+        {liveFavorites.length > 0 && (
+          <>
+            <div className="mt-4 mb-1 px-4 text-2xs font-medium tracking-wide text-faint uppercase">Favoriten</div>
+            <div className="flex flex-col px-2">
+              {liveFavorites.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => useUI.getState().open(id)}
+                  className={cx(
+                    'flex h-7 items-center gap-2 rounded-md px-2 text-sm',
+                    currentId === id ? 'bg-active font-medium text-text' : 'text-muted hover:bg-hover',
+                  )}
+                >
+                  <PageIcon page={pages[id]} />
+                  <span className="truncate">{pageTitle(pages[id])}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="mt-4 mb-1 px-4 text-2xs font-medium tracking-wide text-faint uppercase">Seiten</div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2">

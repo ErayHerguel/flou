@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { flush } from '../db/saveQueue';
+import { searchPages } from '../db/search';
 import { freshDatabase } from '../test/setup';
 import { useDatabases } from './databases';
 import { usePages } from './pages';
@@ -98,6 +99,32 @@ describe('Datenbank-Store', () => {
     expect(usePages.getState().pages[row].deletedAt).not.toBeNull();
     await usePages.getState().restore(id);
     expect(usePages.getState().pages[row].deletedAt).toBeNull();
+  });
+
+  it('findet Einträge über ihre Werte in der Volltextsuche', async () => {
+    const id = await db().createDatabase(null);
+    const [status] = db().data[id].properties;
+    const row = await db().createRow(id, { [status.id]: status.options[2].id });
+    await flush();
+    expect((await searchPages('erledigt')).map((h) => h.id)).toEqual([row]);
+  });
+
+  it('speichert Relationen und Konfiguration berechneter Properties', async () => {
+    const a = await db().createDatabase(null);
+    const b = await db().createDatabase(null);
+    const relId = await db().addProperty(a, 'relation');
+    const rel = db().data[a].properties.find((p) => p.id === relId)!;
+    db().updateProperty({ ...rel, config: { targetDatabaseId: b } });
+    const target = await db().createRow(b);
+    const row = await db().createRow(a);
+    db().setValue(a, row, relId, [target]);
+    const formulaId = await db().addProperty(a, 'formula');
+    const formula = db().data[a].properties.find((p) => p.id === formulaId)!;
+    db().updateProperty({ ...formula, config: { expression: '1 + 1' } });
+    const data = await reload(a);
+    expect(data.properties.find((p) => p.id === relId)!.config.targetDatabaseId).toBe(b);
+    expect(data.properties.find((p) => p.id === formulaId)!.config.expression).toBe('1 + 1');
+    expect(data.values[row][relId]).toEqual([target]);
   });
 
   it('speichert Ansichts-Konfiguration', async () => {

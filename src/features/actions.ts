@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getActiveEditor } from '../editor/active';
 import { useDatabases } from '../store/databases';
+import { copyPageMarkdown, printPage } from './share/share';
 import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles } from './transfer/transfer';
 import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
@@ -138,6 +139,57 @@ export const actions: AppAction[] = [
     run: exportCurrentPage,
   },
   {
+    id: 'share.print',
+    label: 'Drucken / Als PDF sichern …',
+    group: 'Seite',
+    keys: 'Mod+P',
+    menu: 'file',
+    run: printPage,
+  },
+  {
+    id: 'share.copyMarkdown',
+    label: 'Seite als Markdown kopieren',
+    group: 'Seite',
+    keys: 'Mod+Shift+C',
+    menu: 'file',
+    run: copyPageMarkdown,
+  },
+  {
+    id: 'page.favorite',
+    label: 'Favorit an/aus',
+    group: 'Seite',
+    keys: 'Mod+Alt+S',
+    menu: 'file',
+    run: () => {
+      const page = currentPage();
+      if (page) useUI.getState().toggleFavorite(page.id);
+    },
+  },
+  {
+    id: 'page.setHome',
+    label: 'Als Startseite festlegen',
+    group: 'Seite',
+    menu: 'file',
+    run: () => {
+      const page = currentPage();
+      if (page) useUI.getState().setHome(page.id);
+    },
+  },
+  {
+    id: 'page.versions',
+    label: 'Versionsverlauf …',
+    group: 'Seite',
+    menu: 'file',
+    run: () => useUI.getState().setOverlay('versions'),
+  },
+  {
+    id: 'page.comments',
+    label: 'Kommentare der Seite',
+    group: 'Seite',
+    menu: 'file',
+    run: () => useUI.getState().setOverlay('comments'),
+  },
+  {
     id: 'export.workspace',
     label: 'Workspace als Markdown exportieren …',
     group: 'Allgemein',
@@ -215,6 +267,25 @@ export const actions: AppAction[] = [
     run: () => setTheme('system'),
   },
   {
+    id: 'nav.home',
+    label: 'Startseite öffnen',
+    group: 'Navigation',
+    keys: 'Mod+Shift+O',
+    menu: 'go',
+    run: () => {
+      const { homeId, open } = useUI.getState();
+      if (homeId) open(homeId);
+    },
+  },
+  {
+    id: 'nav.focusTree',
+    label: 'Seitenbaum fokussieren',
+    group: 'Navigation',
+    keys: 'Mod+Shift+L',
+    menu: 'go',
+    run: focusTree,
+  },
+  {
     id: 'nav.back',
     label: 'Zurück',
     group: 'Navigation',
@@ -269,6 +340,17 @@ export const actions: AppAction[] = [
     run: quitApp,
   },
 ];
+
+/** Fokussiert die aktuelle Seite in der Seitenleiste (dann mit Pfeiltasten navigierbar). */
+function focusTree() {
+  const ui = useUI.getState();
+  if (!ui.sidebarOpen) ui.toggleSidebar();
+  requestAnimationFrame(() => {
+    const row =
+      document.querySelector<HTMLElement>(`[data-tree-id="${ui.currentId}"]`) ?? document.querySelector<HTMLElement>('[data-tree-id]');
+    row?.focus();
+  });
+}
 
 export function actionById(id: string): AppAction {
   const action = actions.find((a) => a.id === id);

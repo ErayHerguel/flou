@@ -19,15 +19,28 @@ fn normalize_ext(ext: &str) -> Result<String, String> {
     }
 }
 
-/// Speichert Bytes inhaltsadressiert (SHA-256) im Asset-Ordner. Gleiche Bilder liegen nur einmal vor.
+/// Speichert ein Bild inhaltsadressiert (SHA-256) im Asset-Ordner. Gleiche Bilder liegen nur einmal vor.
 fn store(app: &AppHandle, bytes: &[u8], ext: &str) -> Result<String, String> {
-    if bytes.is_empty() {
-        return Err("Leere Datei".into());
-    }
     if bytes.len() > MAX_BYTES {
         return Err("Bilder dürfen höchstens 50 MB groß sein".into());
     }
-    let ext = normalize_ext(ext)?;
+    store_raw(app, bytes, &normalize_ext(ext)?)
+}
+
+/// Endung beliebiger Anhänge: nur Buchstaben/Ziffern, sonst "bin".
+fn file_ext(name: &str) -> String {
+    let ext = Path::new(name).extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !ext.is_empty() && ext.len() <= 10 && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+        ext
+    } else {
+        "bin".into()
+    }
+}
+
+fn store_raw(app: &AppHandle, bytes: &[u8], ext: &str) -> Result<String, String> {
+    if bytes.is_empty() {
+        return Err("Leere Datei".into());
+    }
     let hash = Sha256::digest(bytes);
     let name = format!("{}.{ext}", &format!("{hash:x}")[..32]);
     let dir = assets_dir(app)?;
@@ -68,6 +81,47 @@ pub fn asset_import_bytes(app: AppHandle, request: Request<'_>) -> Result<String
     }
 }
 
+const MAX_FILE_BYTES: usize = 500 * 1024 * 1024;
+
+#[derive(serde::Serialize)]
+pub struct StoredFile {
+    src: String,
+    size: usize,
+}
+
+/// Beliebige Datei als Anhang in den App-Ordner kopieren.
+#[tauri::command]
+pub fn file_import(app: AppHandle, path: String) -> Result<StoredFile, String> {
+    let bytes = fs::read(&path).map_err(|e| format!("{path}: {e}"))?;
+    if bytes.len() > MAX_FILE_BYTES {
+        return Err("Anhänge dürfen höchstens 500 MB groß sein".into());
+    }
+    Ok(StoredFile { src: store_raw(&app, &bytes, &file_ext(&path))?, size: bytes.len() })
+}
+
+/// Anhang aus Zwischenablage oder Drag-and-drop; Dateiname im Header `x-name` (URL-kodiert).
+#[tauri::command]
+pub fn file_import_bytes(app: AppHandle, request: Request<'_>) -> Result<StoredFile, String> {
+    let name = request.headers().get("x-name").and_then(|v| v.to_str().ok()).unwrap_or("datei").to_string();
+    match request.body() {
+        InvokeBody::Raw(bytes) if bytes.len() <= MAX_FILE_BYTES => {
+            Ok(StoredFile { src: store_raw(&app, bytes, &file_ext(&name))?, size: bytes.len() })
+        }
+        InvokeBody::Raw(_) => Err("Anhänge dürfen höchstens 500 MB groß sein".into()),
+        InvokeBody::Json(_) => Err("Erwartet Binärdaten".into()),
+    }
+}
+
+/// Öffnet einen Anhang mit dem Standardprogramm.
+#[tauri::command]
+pub fn open_asset(app: AppHandle, name: String) -> Result<(), String> {
+    if name.contains(['/', '\\']) || name.starts_with('.') {
+        return Err("Ungültiger Dateiname".into());
+    }
+    let path = assets_dir(&app)?.join(name);
+    std::process::Command::new("open").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// Öffnet einen Link im Standardbrowser. Nur auf ausdrückliche Aktion des Nutzers.
 #[tauri::command]
 pub fn open_external(url: String) -> Result<(), String> {
@@ -84,7 +138,14 @@ pub fn open_external(url: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_ext;
+    use super::{file_ext, normalize_ext};
+
+    #[test]
+    fn sanitizes_file_extensions() {
+        assert_eq!(file_ext("Bericht.PDF"), "pdf");
+        assert_eq!(file_ext("ohne"), "bin");
+        assert_eq!(file_ext("x.$(rm)"), "bin");
+    }
 
     #[test]
     fn accepts_images_only() {

@@ -1,5 +1,6 @@
 import { Extension, type Extensions } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Placeholder } from '@tiptap/extensions';
 import StarterKit from '@tiptap/starter-kit';
@@ -8,6 +9,10 @@ import { ImageInput } from './imageInput';
 import { LinkClick } from './linkClick';
 import { Callout } from './nodes/callout';
 import { CodeBlock } from './nodes/codeBlock';
+import { Column, Columns } from './nodes/columns';
+import { Comment } from './nodes/comment';
+import { DatabaseBlock } from './nodes/databaseBlock';
+import { FileBlock } from './nodes/file';
 import { Image } from './nodes/image';
 import { PageLink } from './nodes/pageLink';
 import { PageRef } from './nodes/pageRef';
@@ -16,6 +21,7 @@ import { PageLinkSuggestion, SlashCommand } from './suggest/extensions';
 
 interface ToolbarStorage {
   openLink: (() => void) | null;
+  openComment: (() => void) | null;
 }
 
 declare module '@tiptap/core' {
@@ -27,9 +33,14 @@ declare module '@tiptap/core' {
 /** Verbindet ⇧⌘K mit der Link-Eingabe der schwebenden Leiste. */
 const ToolbarShortcuts = Extension.create<object, ToolbarStorage>({
   name: 'toolbar',
-  addStorage: () => ({ openLink: null }),
+  addStorage: () => ({ openLink: null, openComment: null }),
   addKeyboardShortcuts() {
     return {
+      'Mod-Shift-m': () => {
+        if (this.editor.state.selection.empty || !this.storage.openComment) return false;
+        this.storage.openComment();
+        return true;
+      },
       'Mod-Shift-k': () => {
         if (this.editor.state.selection.empty || !this.storage.openLink) return false;
         this.storage.openLink();
@@ -55,6 +66,15 @@ export function createExtensions(pageId: string): Extensions {
     Callout,
     Toggle,
     Image,
+    FileBlock,
+    Table.configure({ resizable: true, lastColumnResizable: false, cellMinWidth: 80 }),
+    TableRow,
+    TableHeader,
+    TableCell,
+    Columns,
+    Column,
+    Comment,
+    DatabaseBlock,
     PageRef,
     PageLink,
     Placeholder.configure({

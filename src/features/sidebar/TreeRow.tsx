@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { ChevronRight, MoreHorizontal, PenLine, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, House, MoreHorizontal, PenLine, Plus, Star, Trash2 } from 'lucide-react';
 import { memo, useCallback, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { MenuList } from '../../components/MenuList';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
@@ -53,6 +53,18 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
         ref={setRef}
         {...drag.listeners}
         {...drag.attributes}
+        data-tree-id={id}
+        onKeyDown={(e) => {
+          if (renaming) return;
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            useUI.getState().open(id);
+            useUI.getState().requestFocus('editor');
+          } else if (e.key === 'F2') {
+            e.preventDefault();
+            setRenaming(true);
+          }
+        }}
         role="treeitem"
         aria-selected={active}
         aria-expanded={expandable ? expanded : undefined}
@@ -135,6 +147,16 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
                 ? [{ label: 'Unterseite hinzufügen', icon: Plus, onSelect: () => void createPageAndOpen(id) }]
                 : []),
               { label: 'Umbenennen', icon: PenLine, onSelect: () => setRenaming(true) },
+              {
+                label: useUI.getState().favorites.includes(id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
+                icon: Star,
+                onSelect: () => useUI.getState().toggleFavorite(id),
+              },
+              {
+                label: useUI.getState().homeId === id ? 'Startseite entfernen' : 'Als Startseite festlegen',
+                icon: House,
+                onSelect: () => useUI.getState().setHome(useUI.getState().homeId === id ? null : id),
+              },
               {
                 label: 'In den Papierkorb',
                 icon: Trash2,

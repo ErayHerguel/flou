@@ -16,15 +16,15 @@ export function toFtsQuery(input: string): string | null {
   return tokens.map((t) => `"${t}"*`).join(' ');
 }
 
-/** Volltextsuche über Titel (stärker gewichtet) und Inhalt aller Seiten außerhalb des Papierkorbs. */
+/** Volltextsuche über Titel (stärker gewichtet), Inhalt und Datenbank-Werte aller Seiten außerhalb des Papierkorbs. */
 export async function searchPages(input: string, limit = 30): Promise<SearchHit[]> {
   const query = toFtsQuery(input);
   if (!query) return [];
   return db().select<SearchHit>(
-    `SELECT p.id AS id, snippet(pages_fts, 1, ?, ?, '…', 14) AS snippet
+    `SELECT p.id AS id, snippet(pages_fts, -1, ?, ?, '…', 14) AS snippet
      FROM pages_fts JOIN pages p ON p.rid = pages_fts.rowid
      WHERE pages_fts MATCH ? AND p.deleted_at IS NULL
-     ORDER BY bm25(pages_fts, 8.0, 1.0)
+     ORDER BY bm25(pages_fts, 8.0, 1.0, 2.0)
      LIMIT ?`,
     [MARK_START, MARK_END, query, limit],
   );

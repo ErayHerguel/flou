@@ -102,3 +102,17 @@ describe('Seiten-Store', () => {
     spy.mockRestore();
   });
 });
+
+describe('Versionsverlauf', () => {
+  it('legt höchstens eine Version je 10 Minuten an und behält 50', async () => {
+    const a = await store().create({ title: 'A' });
+    const t0 = 1_000_000_000;
+    await driver.tx(saveContent(a, { type: 'doc', content: [] }, 'v1', [], t0));
+    await driver.tx(saveContent(a, { type: 'doc', content: [] }, 'v1b', [], t0 + 60_000));
+    expect((await driver.select<{ text: string }>('SELECT text FROM page_versions')).map((r) => r.text)).toEqual(['v1']);
+    for (let i = 1; i <= 60; i++) await driver.tx(saveContent(a, { type: 'doc' }, `v${i + 1}`, [], t0 + i * 11 * 60_000));
+    const rows = await driver.select<{ text: string }>('SELECT text FROM page_versions ORDER BY created_at DESC');
+    expect(rows).toHaveLength(50);
+    expect(rows[0].text).toBe('v61');
+  });
+});

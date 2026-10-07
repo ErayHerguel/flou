@@ -29,6 +29,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/003_search.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "extras",
+            sql: include_str!("../migrations/004_extras.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -41,6 +47,12 @@ fn app_ready(window: WebviewWindow, start: State<'_, StartTime>) {
     let _ = window.show();
     let _ = window.set_focus();
     println!("Flou bereit nach {} ms", start.0.elapsed().as_millis());
+}
+
+/// Öffnet den macOS-Druckdialog für die aktuelle Ansicht (dort auch „Als PDF sichern“).
+#[tauri::command]
+fn print_page(window: WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
 }
 
 /// Beendet die App, nachdem das Frontend ausstehende Änderungen gespeichert hat.
@@ -58,6 +70,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(db::Db::new())
         .manage(started)
         .setup(|app| {
@@ -79,6 +92,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_quit,
             app_ready,
+            print_page,
+            assets::file_import,
+            assets::file_import_bytes,
+            assets::open_asset,
             assets::asset_import_bytes,
             assets::asset_import_file,
             assets::open_external,

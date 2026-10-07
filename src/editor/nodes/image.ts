@@ -15,6 +15,7 @@ export const Image = Node.create({
       src: { default: null },
       alt: { default: '' },
       width: { default: null },
+      caption: { default: '' },
     };
   },
 
@@ -27,13 +28,17 @@ export const Image = Node.create({
           src: element.getAttribute('data-asset'),
           alt: element.getAttribute('alt') ?? '',
           width: Number(element.getAttribute('data-width')) || null,
+          caption: element.getAttribute('data-caption') ?? '',
         }),
       },
     ];
   },
 
   renderHTML({ node }) {
-    return ['img', { 'data-asset': node.attrs.src, alt: node.attrs.alt, 'data-width': node.attrs.width ?? undefined }];
+    return [
+      'img',
+      { 'data-asset': node.attrs.src, alt: node.attrs.alt, 'data-width': node.attrs.width ?? undefined, 'data-caption': node.attrs.caption || undefined },
+    ];
   },
 
   addNodeView() {
@@ -44,12 +49,31 @@ export const Image = Node.create({
       img.draggable = false;
       const handle = el('div', 'image-resize');
       frame.append(img, handle);
-      dom.append(frame);
+      const caption = el('input', 'image-caption');
+      caption.placeholder = 'Bildunterschrift';
+      caption.spellcheck = true;
+      const saveCaption = () => {
+        const pos = getPos();
+        if (typeof pos === 'number' && caption.value !== node.attrs.caption) {
+          editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'caption', caption.value));
+        }
+      };
+      caption.addEventListener('blur', saveCaption);
+      caption.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
+          caption.blur();
+          editor.commands.focus();
+        }
+      });
+      dom.append(frame, caption);
 
       const apply = (attrs: Record<string, unknown>) => {
         img.src = attrs.src ? assetUrl(String(attrs.src)) : '';
         img.alt = String(attrs.alt ?? '');
         frame.style.width = attrs.width ? `${attrs.width}%` : '';
+        if (document.activeElement !== caption) caption.value = String(attrs.caption ?? '');
+        dom.classList.toggle('has-caption', Boolean(attrs.caption));
       };
       apply(node.attrs);
 
@@ -85,7 +109,7 @@ export const Image = Node.create({
         },
         selectNode: () => dom.classList.add('is-selected'),
         deselectNode: () => dom.classList.remove('is-selected'),
-        stopEvent: (event) => event.target === handle,
+        stopEvent: (event) => event.target === handle || event.target === caption,
         ignoreMutation: () => true,
       };
     };

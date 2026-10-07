@@ -498,3 +498,145 @@
 div.block-handle-button {
   cursor: grab;
 }
+
+/* ---------- Tabellen ---------- */
+.flou-editor .tableWrapper {
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.flou-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+.flou-editor td,
+.flou-editor th {
+  position: relative;
+  min-width: 80px;
+  border: 1px solid var(--c-border-strong);
+  padding: 4px 8px;
+  vertical-align: top;
+}
+.flou-editor th {
+  background: var(--c-hover);
+  font-weight: 600;
+  text-align: left;
+}
+.flou-editor td > p,
+.flou-editor th > p {
+  padding: 0;
+}
+.flou-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--c-accent-soft);
+  pointer-events: none;
+}
+.flou-editor .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  background: var(--c-accent);
+  pointer-events: none;
+}
+.flou-editor.resize-cursor {
+  cursor: col-resize;
+}
+
+/* ---------- Spalten ---------- */
+.flou-editor .columns {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 24px;
+  margin: 6px 0;
+}
+.flou-editor .column {
+  min-width: 0;
+}
+
+/* ---------- Anhänge ---------- */
+.flou-editor .file-block {
+  margin: 6px 0;
+}
+.flou-editor .file-block video {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+}
+.flou-editor .file-block audio {
+  width: 100%;
+  margin-bottom: 4px;
+}
+.flou-editor .file-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  color: var(--c-muted);
+  text-align: left;
+}
+.flou-editor .file-chip:hover {
+  background: var(--c-hover);
+}
+.flou-editor .file-name {
+  flex: 1;
+  overflow: hidden;
+  color: var(--c-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flou-editor .file-size {
+  font-size: var(--text-xs);
+  color: var(--c-faint);
+}
+.flou-editor .file-block.is-selected .file-chip {
+  border-color: var(--c-accent);
+}
+
+/* ---------- Bildunterschrift ---------- */
+.flou-editor .image-caption {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  border: none;
+  background: transparent;
+  color: var(--c-muted);
+  font-size: var(--text-sm);
+  outline: none;
+  opacity: 0;
+}
+.flou-editor .image-block.has-caption .image-caption,
+.flou-editor .image-block.is-selected .image-caption,
+.flou-editor .image-caption:focus {
+  opacity: 1;
+}
+.flou-editor .image-caption::placeholder {
+  color: var(--c-faint);
+}
+
+/* ---------- Kommentare ---------- */
+.flou-editor .comment-mark {
+  background: color-mix(in srgb, var(--c-mark) 55%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--c-mark) 100%, var(--c-text) 15%);
+}
+
+/* ---------- Eingebettete Datenbank ---------- */
+.flou-editor .database-block {
+  margin: 12px 0;
+  white-space: normal;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+.flou-editor .database-block.ProseMirror-selectednode {
+  background: none;
+  outline: 2px solid var(--c-accent-soft);
+  border-radius: var(--radius-md);
+}

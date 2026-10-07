@@ -252,3 +252,40 @@
   background: var(--c-tag-red-bg);
   color: var(--c-tag-red-fg);
 }
+
+/* Drucken bzw. „Als PDF sichern“: nur der Seiteninhalt, hell, ohne Bedienelemente */
+@media print {
+  .dark {
+    --c-bg: #ffffff;
+    --c-surface: #ffffff;
+    --c-hover: rgb(40 40 35 / 0.055);
+    --c-border: #e3e3e0;
+    --c-border-strong: #d0d0cc;
+    --c-text: #1d1d1b;
+    --c-muted: #5c5c57;
+    --c-faint: #8f8f89;
+    --c-code: #f5f4f1;
+    --c-code-fg: #c0504a;
+    --c-mark: #fbeeb8;
+    color-scheme: light;
+  }
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  [data-scroll-container] {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .block-handle,
+  .image-resize,
+  .code-language {
+    display: none !important;
+  }
+  .flou-editor .toggle[data-open='false'] > .toggle-content > :not(:first-child) {
+    display: block;
+  }
+}

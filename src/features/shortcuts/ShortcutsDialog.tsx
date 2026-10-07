@@ -14,6 +14,7 @@ const EDITOR_SHORTCUTS: [string, string][] = [
   ['Code', 'Mod+E'],
   ['Hervorheben', 'Mod+Shift+H'],
   ['Link', 'Mod+Shift+K'],
+  ['Kommentar', 'Mod+Shift+M'],
   ['Überschrift 1–3', 'Mod+Alt+1'],
   ['Aufzählung', 'Mod+Shift+8'],
   ['Nummerierte Liste', 'Mod+Shift+7'],

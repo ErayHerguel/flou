@@ -105,6 +105,29 @@ export function PageTree() {
 
   const dragged = activeId ? pages[activeId] : undefined;
 
+  /** Pfeiltasten: hoch/runter wandern, rechts aufklappen bzw. ins Kind, links zuklappen bzw. zum Elternteil. */
+  const onTreeKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const current = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-id]');
+    if (!current || !['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) return;
+    e.preventDefault();
+    const id = current.dataset.treeId!;
+    const all = [...e.currentTarget.querySelectorAll<HTMLElement>('[data-tree-id]')];
+    const index = all.indexOf(current);
+    const focus = (el: HTMLElement | undefined) => el?.focus();
+    const page = pages[id];
+    const canExpand = page?.type === 'page';
+    if (e.key === 'Escape') useUI.getState().requestFocus('editor');
+    else if (e.key === 'ArrowDown') focus(all[index + 1]);
+    else if (e.key === 'ArrowUp') focus(all[index - 1]);
+    else if (e.key === 'ArrowRight') {
+      if (canExpand && !expanded[id]) useUI.getState().setExpanded(id, true);
+      else focus(all[index + 1]);
+    } else if (e.key === 'ArrowLeft') {
+      if (expanded[id]) useUI.getState().setExpanded(id, false);
+      else if (page?.parentId) focus(all.find((el) => el.dataset.treeId === page.parentId));
+    }
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -114,7 +137,7 @@ export function PageTree() {
       onDragEnd={onDragEnd}
       onDragCancel={reset}
     >
-      <div role="tree" className="flex flex-col">
+      <div role="tree" className="flex flex-col" onKeyDown={onTreeKey}>
         {rows.map((row) =>
           row.kind === 'page' ? (
             <TreeRow

@@ -24,7 +24,7 @@ export function assetUrl(name: string): string {
   return convertFileSrc(`${appPaths().assetsDir}/${name}`);
 }
 
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'heic'];
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'heic'];
 
 export function importImageFile(path: string): Promise<string> {
   return invoke<string>('asset_import_file', { path });
@@ -49,4 +49,31 @@ export async function pickImage(): Promise<string | null> {
 
 export function openExternal(url: string): Promise<void> {
   return invoke('open_external', { url });
+}
+
+export interface StoredFile {
+  src: string;
+  size: number;
+}
+
+/** Beliebige Datei als Anhang kopieren (inhaltsadressiert). */
+export function importFile(path: string): Promise<StoredFile> {
+  return invoke<StoredFile>('file_import', { path });
+}
+
+export async function importFileBlob(file: Blob, name: string): Promise<StoredFile> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return invoke<StoredFile>('file_import_bytes', bytes, { headers: { 'x-name': encodeURIComponent(name) } });
+}
+
+/** Dateidialog für Anhänge. Liefert Pfad und Namen oder null. */
+export async function pickFile(): Promise<{ path: string; name: string } | null> {
+  const selected = await open({ multiple: false, directory: false });
+  if (typeof selected !== 'string') return null;
+  return { path: selected, name: selected.split('/').pop() ?? selected };
+}
+
+/** Öffnet einen Anhang mit dem Standardprogramm von macOS. */
+export function openAsset(name: string): Promise<void> {
+  return invoke('open_asset', { name });
 }

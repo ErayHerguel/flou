@@ -1,29 +1,29 @@
 import { Extension, type Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { importImageBlob } from '../lib/assets';
+import { IMAGE_EXTENSIONS, importFileBlob, importImageBlob } from '../lib/assets';
 import { reportError } from '../store/toast';
 
-const imageFiles = (data: DataTransfer | null): File[] =>
-  data ? [...data.files].filter((file) => file.type.startsWith('image/')) : [];
+const filesOf = (data: DataTransfer | null): File[] => (data ? [...data.files] : []);
+const isImage = (file: File) => IMAGE_EXTENSIONS.includes((file.name.split('.').pop() ?? '').toLowerCase()) || /^image\/(png|jpeg|gif|webp)$/.test(file.type);
 
+/** Bilder werden zu Bildblöcken, alle anderen Dateien zu Anhängen. */
 async function insertImages(editor: Editor, files: File[], pos: number) {
   try {
-    const names = await Promise.all(files.map((file) => importImageBlob(file, file.name)));
+    const nodes = await Promise.all(
+      files.map(async (file) => {
+        if (isImage(file)) return { type: 'image', attrs: { src: await importImageBlob(file, file.name) } };
+        const stored = await importFileBlob(file, file.name);
+        return { type: 'file', attrs: { src: stored.src, name: file.name, size: stored.size } };
+      }),
+    );
     if (editor.isDestroyed) return;
-    editor
-      .chain()
-      .focus()
-      .insertContentAt(
-        pos,
-        names.map((src) => ({ type: 'image', attrs: { src } })),
-      )
-      .run();
+    editor.chain().focus().insertContentAt(pos, nodes).run();
   } catch (err) {
-    reportError('Bild konnte nicht eingefügt werden', err);
+    reportError('Datei konnte nicht eingefügt werden', err);
   }
 }
 
-/** Bilder aus Zwischenablage oder Finder werden in den App-Ordner kopiert und eingefügt. */
+/** Bilder und Dateien aus Zwischenablage oder Finder werden in den App-Ordner kopiert und eingefügt. */
 export const ImageInput = Extension.create({
   name: 'imageInput',
   addProseMirrorPlugins() {
@@ -33,7 +33,7 @@ export const ImageInput = Extension.create({
         key: new PluginKey('imageInput'),
         props: {
           handlePaste(view, event) {
-            const files = imageFiles(event.clipboardData);
+            const files = filesOf(event.clipboardData);
             if (files.length === 0) return false;
             event.preventDefault();
             void insertImages(editor, files, view.state.selection.from);
@@ -41,7 +41,7 @@ export const ImageInput = Extension.create({
           },
           handleDrop(view, event, _slice, moved) {
             if (moved) return false;
-            const files = imageFiles(event.dataTransfer);
+            const files = filesOf(event.dataTransfer);
             if (files.length === 0) return false;
             event.preventDefault();
             const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from;

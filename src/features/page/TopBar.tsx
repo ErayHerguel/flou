@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, MoreHorizontal, MoveHorizontal, PanelLeft, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, History, House, MessageSquare, MoreHorizontal, MoveHorizontal, PanelLeft, Printer, Star, Trash2 } from 'lucide-react';
 import { Fragment, useCallback, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { MenuList } from '../../components/MenuList';
@@ -22,12 +22,14 @@ export function TopBar({ pageId }: { pageId: string | null }) {
   const page = pageId ? pages[pageId] : undefined;
   const crumbs = page ? [...ancestorIds(pages, page.id), page.id] : [];
   const [menu, setMenu] = useState<Anchor | null>(null);
+  const favorite = useUI((s) => (pageId ? s.favorites.includes(pageId) : false));
+  const isHome = useUI((s) => pageId !== null && s.homeId === pageId);
   const closeMenu = useCallback(() => setMenu(null), []);
 
   return (
     <header
       data-tauri-drag-region
-      className="flex h-11 shrink-0 items-center gap-1 pr-3"
+      className="flex h-11 shrink-0 items-center gap-1 pr-3 print:hidden"
       style={{ paddingLeft: sidebarOpen ? 12 : TRAFFIC_LIGHT_INSET }}
     >
       {!sidebarOpen && (
@@ -58,6 +60,16 @@ export function TopBar({ pageId }: { pageId: string | null }) {
       <div data-tauri-drag-region className="h-full flex-1" />
       <SaveIndicator />
       {page && (
+        <button
+          aria-label={favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+          title={favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+          onClick={() => useUI.getState().toggleFavorite(page.id)}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-hover hover:text-text"
+        >
+          <Star size={16} className={favorite ? 'fill-current text-accent' : ''} />
+        </button>
+      )}
+      {page && (
         <IconButton icon={MoreHorizontal} label="Seitenoptionen" onClick={(e) => setMenu(e.currentTarget.getBoundingClientRect())} />
       )}
       {menu && page && (
@@ -71,6 +83,19 @@ export function TopBar({ pageId }: { pageId: string | null }) {
                 hint: formatCombo(actionById('page.fullWidth').keys!),
                 onSelect: () => void actionById('page.fullWidth').run(),
               },
+              { label: 'Drucken / Als PDF sichern …', icon: Printer, hint: formatCombo('Mod+P'), onSelect: () => void actionById('share.print').run() },
+              { label: 'Als Markdown kopieren', icon: Copy, hint: formatCombo('Mod+Shift+C'), onSelect: () => void actionById('share.copyMarkdown').run() },
+              {
+                label: isHome ? 'Startseite entfernen' : 'Als Startseite festlegen',
+                icon: House,
+                onSelect: () => useUI.getState().setHome(isHome ? null : page.id),
+              },
+              ...(page.type === 'page'
+                ? [
+                    { label: 'Versionsverlauf …', icon: History, onSelect: () => useUI.getState().setOverlay('versions') },
+                    { label: 'Kommentare', icon: MessageSquare, onSelect: () => useUI.getState().setOverlay('comments') },
+                  ]
+                : []),
               {
                 label: 'In den Papierkorb',
                 icon: Trash2,

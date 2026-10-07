@@ -1,12 +1,12 @@
-import { Plus, SquareKanban, Table2, Trash2, PenLine } from 'lucide-react';
+import { CalendarDays, LayoutGrid, List, PenLine, Plus, SquareKanban, Table2, Trash2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { MenuList } from '../../components/MenuList';
 import { Popover, pointAnchor, type Anchor } from '../../components/Popover';
 import type { View } from '../../db/database';
 import { cx } from '../../lib/cx';
-import { useDatabases } from '../../store/databases';
+import { useDatabases, VIEW_LABEL } from '../../store/databases';
 
-const VIEW_ICON = { table: Table2, board: SquareKanban } as const;
+const VIEW_ICON = { table: Table2, board: SquareKanban, calendar: CalendarDays, gallery: LayoutGrid, list: List } as const;
 
 export function ViewTabs({ views, activeId, onSelect }: { views: View[]; activeId: string; onSelect: (id: string) => void }) {
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -86,10 +86,11 @@ export function ViewTabs({ views, activeId, onSelect }: { views: View[]; activeI
         <Popover anchor={addAnchor} onClose={closeAdd}>
           <MenuList
             onDone={closeAdd}
-            items={[
-              { label: 'Tabelle', icon: Table2, onSelect: () => void add('table') },
-              { label: 'Board', icon: SquareKanban, onSelect: () => void add('board') },
-            ]}
+            items={(Object.keys(VIEW_ICON) as View['type'][]).map((type) => ({
+              label: VIEW_LABEL[type],
+              icon: VIEW_ICON[type],
+              onSelect: () => void add(type),
+            }))}
           />
         </Popover>
       )}

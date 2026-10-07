@@ -1,6 +1,32 @@
 import { db, type Statement } from './driver';
 
-export type PropertyType = 'text' | 'number' | 'select' | 'multi_select' | 'date' | 'checkbox' | 'url';
+export type PropertyType =
+  | 'text'
+  | 'number'
+  | 'select'
+  | 'multi_select'
+  | 'date'
+  | 'checkbox'
+  | 'url'
+  | 'relation'
+  | 'rollup'
+  | 'formula';
+
+/** Berechnete Typen speichern keine Werte. */
+export const COMPUTED_TYPES: PropertyType[] = ['rollup', 'formula'];
+
+export type RollupAggregate = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'show';
+
+export interface PropertyConfig {
+  /** relation: Ziel-Datenbank */
+  targetDatabaseId?: string;
+  /** rollup: Relation dieser Datenbank und Property der Ziel-Datenbank */
+  relationPropertyId?: string;
+  targetPropertyId?: string;
+  aggregate?: RollupAggregate;
+  /** formula */
+  expression?: string;
+}
 
 export const TAG_COLORS = ['gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red'] as const;
 export type TagColor = (typeof TAG_COLORS)[number];
@@ -17,6 +43,7 @@ export interface Property {
   name: string;
   type: PropertyType;
   options: SelectOption[];
+  config: PropertyConfig;
   sortOrder: number;
 }
 
@@ -56,13 +83,17 @@ export interface Sort {
 
 export interface ViewConfig {
   filters: Filter[];
+  /** Verknüpfung der Filter */
+  filterMode: 'and' | 'or';
+  /** Kalender: Datums-Property */
+  dateBy: string | null;
   sorts: Sort[];
   widths: Record<string, number>;
   hidden: string[];
   groupBy: string | null;
 }
 
-export type ViewType = 'table' | 'board';
+export type ViewType = 'table' | 'board' | 'calendar' | 'gallery' | 'list';
 
 export interface View {
   id: string;
@@ -73,7 +104,7 @@ export interface View {
   sortOrder: number;
 }
 
-export const emptyConfig = (): ViewConfig => ({ filters: [], sorts: [], widths: {}, hidden: [], groupBy: null });
+export const emptyConfig = (): ViewConfig => ({ filters: [], filterMode: 'and', dateBy: null, sorts: [], widths: {}, hidden: [], groupBy: null });
 
 function parseJson<T>(text: string, fallback: T): T {
   try {
@@ -85,8 +116,8 @@ function parseJson<T>(text: string, fallback: T): T {
 
 export async function loadSchema(databaseId: string): Promise<{ properties: Property[]; views: View[] }> {
   const [props, views] = await Promise.all([
-    db().select<{ id: string; name: string; type: PropertyType; options: string; sort_order: number }>(
-      'SELECT id, name, type, options, sort_order FROM db_properties WHERE database_id = ? ORDER BY sort_order, rowid',
+    db().select<{ id: string; name: string; type: PropertyType; options: string; config: string; sort_order: number }>(
+      'SELECT id, name, type, options, config, sort_order FROM db_properties WHERE database_id = ? ORDER BY sort_order, rowid',
       [databaseId],
     ),
     db().select<{ id: string; name: string; type: ViewType; config: string; sort_order: number }>(
@@ -101,6 +132,7 @@ export async function loadSchema(databaseId: string): Promise<{ properties: Prop
       name: r.name,
       type: r.type,
       options: parseJson<SelectOption[]>(r.options, []),
+      config: parseJson<PropertyConfig>(r.config, {}),
       sortOrder: Number(r.sort_order),
     })),
     views: views.map((r) => ({
@@ -128,15 +160,15 @@ export async function loadValues(databaseId: string): Promise<Record<string, Rec
 
 export function insertProperty(p: Property): Statement {
   return {
-    sql: 'INSERT INTO db_properties (id, database_id, name, type, options, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-    params: [p.id, p.databaseId, p.name, p.type, JSON.stringify(p.options), p.sortOrder],
+    sql: 'INSERT INTO db_properties (id, database_id, name, type, options, config, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    params: [p.id, p.databaseId, p.name, p.type, JSON.stringify(p.options), JSON.stringify(p.config), p.sortOrder],
   };
 }
 
 export function updateProperty(p: Property): Statement {
   return {
-    sql: 'UPDATE db_properties SET name = ?, type = ?, options = ?, sort_order = ? WHERE id = ?',
-    params: [p.name, p.type, JSON.stringify(p.options), p.sortOrder, p.id],
+    sql: 'UPDATE db_properties SET name = ?, type = ?, options = ?, config = ?, sort_order = ? WHERE id = ?',
+    params: [p.name, p.type, JSON.stringify(p.options), JSON.stringify(p.config), p.sortOrder, p.id],
   };
 }
 
@@ -176,4 +208,12 @@ export function updateView(v: View): Statement {
 
 export function deleteView(id: string): Statement {
   return { sql: 'DELETE FROM db_views WHERE id = ?', params: [id] };
+}
+
+/** Durchsuchbarer Text der Datenbank-Werte eines Eintrags (Spalte props der Volltextsuche). */
+export function setSearchProps(pageId: string, text: string): Statement {
+  return {
+    sql: 'UPDATE pages_fts SET props = ? WHERE rowid = (SELECT rid FROM pages WHERE id = ?)',
+    params: [text, pageId],
+  };
 }
