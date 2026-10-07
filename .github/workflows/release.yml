@@ -1,0 +1,47 @@
+# Baut Flou bei jedem Versions-Tag (z. B. v1.0.1) und veröffentlicht DMG und Installer als GitHub-Release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:mac
+
+      - name: Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Flou_${VERSION}_aarch64.dmg"
+          test -f "$DMG" || { echo "DMG fehlt – stimmt die Version in package.json/tauri.conf.json mit dem Tag überein?"; exit 1; }
+          mkdir -p out
+          cp "$DMG" out/Flou.dmg
+          cp "$DMG" "out/Flou_${VERSION}_aarch64.dmg"
+          sed "s|__REPO__|${GITHUB_REPOSITORY}|g" website/install.sh > out/install.sh
+          gh release create "$GITHUB_REF_NAME" out/* \
+            --title "Flou $VERSION" \
+            --notes "Installation: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` oder Flou.dmg laden. Benötigt einen Mac mit Apple Silicon und macOS 13 oder neuer."

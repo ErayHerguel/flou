@@ -79,6 +79,19 @@ Alternativ das DMG öffnen und Flou in den Programme-Ordner ziehen. Weil die App
 xattr -cr /Applications/Flou.app
 ```
 
+## Veröffentlichen (GitHub)
+
+- `website/`: Webseite mit Download und Installationsanleitung, wird per GitHub Pages veröffentlicht (`.github/workflows/pages.yml`).
+- `.github/workflows/release.yml`: baut bei jedem Tag `v*` die App auf einem Mac-Runner und veröffentlicht `Flou.dmg`, die versionierte DMG und `install.sh` als GitHub-Release.
+- Installation für Nutzer ohne Gatekeeper-Warnung: `curl -fsSL https://github.com/<user>/<repo>/releases/latest/download/install.sh | bash`
+
+Neue Version:
+
+```bash
+npm run version:set -- 1.0.1
+git commit -am "Version 1.0.1" && git tag v1.0.1 && git push && git push --tags
+```
+
 ## Datenordner
 
 ```
