@@ -53,9 +53,21 @@ export async function checkForUpdate(manual = false): Promise<void> {
     const { dismissedVersion } = useUpdate.getState();
     useUpdate.setState({ phase: 'available', version: update.version, visible: manual || dismissedVersion !== update.version });
   } catch (err) {
-    if (manual) reportError('Update-Prüfung fehlgeschlagen', err);
+    if (manual) toast(describeCheckError(err));
     else console.warn('Update-Prüfung fehlgeschlagen', err);
   }
+}
+
+/** Verständliche Meldung statt technischer Fehler: Fehlende Update-Infos heißen „aktuell“. */
+export function describeCheckError(err: unknown): string {
+  const message = String(err instanceof Error ? err.message : err).toLowerCase();
+  if (message.includes('release json') || message.includes('404') || message.includes('not found')) {
+    return 'flou ist auf dem neuesten Stand';
+  }
+  if (/(network|connect|dns|timed? ?out|offline|resolve|internet)/.test(message)) {
+    return 'Keine Verbindung zu GitHub. Bitte später erneut versuchen.';
+  }
+  return 'Update-Prüfung gerade nicht möglich. Bitte später erneut versuchen.';
 }
 
 /** Beim Start: kurz warten, damit die App zuerst flüssig lädt. */
