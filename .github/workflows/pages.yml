@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths: ['website/**', 'package.json', '.github/workflows/pages.yml']
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
