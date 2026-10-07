@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 APP_NAME="flou"
 BUNDLE_ID="app.flou.desktop"
-ROOT="src-tauri/target/aarch64-apple-darwin/release/bundle"
+ROOT="src-tauri/target.noindex/aarch64-apple-darwin/release/bundle"
 APP="$ROOT/macos/$APP_NAME.app"
 BIN="$APP/Contents/MacOS/flou"
 

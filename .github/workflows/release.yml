@@ -33,14 +33,14 @@ jobs:
       - name: Dateien sammeln
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/flou_${VERSION}_aarch64.dmg"
+          DMG="src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/dmg/flou_${VERSION}_aarch64.dmg"
           test -f "$DMG" || { echo "DMG fehlt – stimmt die Version (npm run version:set) mit dem Tag überein?"; exit 1; }
           mkdir -p out
           cp "$DMG" out/flou.dmg
           cp "$DMG" "out/flou_${VERSION}_aarch64.dmg"
           sed "s|__REPO__|${GITHUB_REPOSITORY}|g" website/install.sh > out/install.sh
           # Update-Paket für die App (signiert)
-          BUNDLE=src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+          BUNDLE=src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/macos
           cp "$BUNDLE/flou.app.tar.gz" out/flou_aarch64.app.tar.gz
           cp "$BUNDLE/flou.app.tar.gz.sig" out/flou_aarch64.app.tar.gz.sig
       - uses: actions/upload-artifact@v4
@@ -69,8 +69,8 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          SETUP="src-tauri/target/release/bundle/nsis/flou_${VERSION}_x64-setup.exe"
-          test -f "$SETUP" || { echo "Installer fehlt – stimmt die Version mit dem Tag überein?"; ls src-tauri/target/release/bundle/nsis; exit 1; }
+          SETUP="src-tauri/target.noindex/release/bundle/nsis/flou_${VERSION}_x64-setup.exe"
+          test -f "$SETUP" || { echo "Installer fehlt – stimmt die Version mit dem Tag überein?"; ls src-tauri/target.noindex/release/bundle/nsis; exit 1; }
           mkdir -p out
           cp "$SETUP" out/flou-setup.exe
           cp "$SETUP" "out/flou_${VERSION}_x64-setup.exe"

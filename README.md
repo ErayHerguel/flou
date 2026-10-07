@@ -54,8 +54,8 @@ npm run build:mac
 
 Das ist `npm run tauri build` für `aarch64-apple-darwin`. Ergebnis:
 
-- App: `src-tauri/target/aarch64-apple-darwin/release/bundle/macos/flou.app`
-- DMG: `src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/flou_1.0.0_aarch64.dmg`
+- App: `src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/macos/flou.app`
+- DMG: `src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/dmg/flou_1.0.0_aarch64.dmg`
 
 Die App ist ad-hoc signiert, nicht mit einer Apple-Developer-ID. Beim DMG-Bau ordnet macOS das Fenster über den Finder an; beim ersten Mal kann dafür eine Rückfrage zur Finder-Steuerung erscheinen.
 
@@ -68,7 +68,7 @@ npm run smoke
 ## Windows
 
 - Installer: `flou-setup.exe` (NSIS, ohne Administratorrechte, Eintrag im Startmenü, Deinstallation über die Windows-Einstellungen).
-- Gebaut wird er automatisch vom Release-Workflow auf einem Windows-Runner, oder lokal auf einem Windows-PC mit `npm run build:win` (Ergebnis unter `src-tauri/target/release/bundle/nsis/`).
+- Gebaut wird er automatisch vom Release-Workflow auf einem Windows-Runner, oder lokal auf einem Windows-PC mit `npm run build:win` (Ergebnis unter `src-tauri/target.noindex/release/bundle/nsis/`).
 - Daten liegen unter `%APPDATA%\app.flou.desktop`. Kürzel nutzen Strg statt ⌘.
 - Ohne kostenpflichtiges Code-Signing zeigt Windows beim ersten Start „Der Computer wurde durch Windows geschützt“ → „Weitere Informationen“ → „Trotzdem ausführen“.
 

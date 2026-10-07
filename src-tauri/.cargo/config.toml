@@ -1,0 +1,3 @@
+# Build-Ausgaben in einem Ordner, den Spotlight ignoriert (keine doppelten Apps in der Suche)
+[build]
+target-dir = "target.noindex"
