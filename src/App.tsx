@@ -24,6 +24,8 @@ import { useShortcuts } from './features/shortcuts/useShortcuts';
 import { Sidebar } from './features/sidebar/Sidebar';
 import { TrashDialog } from './features/trash/TrashDialog';
 import { useTheme } from './features/useTheme';
+import { UpdateBanner } from './features/update/UpdateBanner';
+import { hydrateUpdates, scheduleStartupCheck } from './features/update/updater';
 import { usePages } from './store/pages';
 import { forgetPages, useUI } from './store/ui';
 
@@ -44,6 +46,7 @@ function bootstrap(): Promise<void> {
     setDriver(driver);
     const settings = await loadSettings();
     useUI.getState().hydrate(settings);
+    hydrateUpdates(settings);
     await usePages.getState().load();
     const welcomeId = await runFirstStart(settings);
     if (welcomeId) useUI.getState().open(welcomeId);
@@ -57,6 +60,7 @@ function bootstrap(): Promise<void> {
       const parentId = prev.pages[current]?.parentId;
       forgetPages(isLive, parentId && isLive(parentId) ? parentId : firstRoot());
     });
+    scheduleStartupCheck();
     if (IS_MAC) installMenu().catch((err) => console.error('Menü konnte nicht erstellt werden', err));
   })();
   return booting;
@@ -112,6 +116,7 @@ export function App() {
       {overlay === 'comments' && <CommentsDialog />}
       <ConfirmDialog />
       <Toasts />
+      <UpdateBanner />
     </div>
   );
 }

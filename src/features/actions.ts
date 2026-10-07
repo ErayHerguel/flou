@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getActiveEditor } from '../editor/active';
 import { useDatabases } from '../store/databases';
 import { copyPageMarkdown, printPage } from './share/share';
+import { checkForUpdate, toggleAutoUpdate } from './update/updater';
 import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles } from './transfer/transfer';
 import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
@@ -322,6 +323,20 @@ export const actions: AppAction[] = [
     group: 'Allgemein',
     menu: 'help',
     run: () => invoke('reveal_dir', { which: 'backups' }),
+  },
+  {
+    id: 'update.check',
+    label: 'Nach Updates suchen …',
+    group: 'Allgemein',
+    menu: 'app',
+    run: () => checkForUpdate(true),
+  },
+  {
+    id: 'update.toggleAuto',
+    label: 'Automatische Update-Suche an/aus',
+    group: 'Allgemein',
+    menu: 'help',
+    run: toggleAutoUpdate,
   },
   {
     id: 'app.dataFolder',

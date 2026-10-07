@@ -46,7 +46,7 @@ struct StartTime(Instant);
 fn app_ready(window: WebviewWindow, start: State<'_, StartTime>) {
     let _ = window.show();
     let _ = window.set_focus();
-    println!("Flou bereit nach {} ms", start.0.elapsed().as_millis());
+    println!("flou bereit nach {} ms", start.0.elapsed().as_millis());
 }
 
 /// Öffnet den macOS-Druckdialog für die aktuelle Ansicht (dort auch „Als PDF sichern“).
@@ -71,6 +71,8 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(db::Db::new())
         .manage(started)
         .setup(|app| {
@@ -108,5 +110,5 @@ pub fn run() {
             transfer::reveal_path,
         ])
         .run(tauri::generate_context!())
-        .expect("Fehler beim Starten von Flou");
+        .expect("Fehler beim Starten von flou");
 }

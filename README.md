@@ -1,4 +1,4 @@
-# Flou
+# flou
 
 Lokale Notizen und Datenbanken für macOS (Apple Silicon) und Windows: schnell, tastaturfreundlich, vollständig offline.
 Kein Konto, kein Server, keine Telemetrie. Alle Daten liegen auf deinem Mac.
@@ -54,8 +54,8 @@ npm run build:mac
 
 Das ist `npm run tauri build` für `aarch64-apple-darwin`. Ergebnis:
 
-- App: `src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Flou.app`
-- DMG: `src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Flou_1.0.0_aarch64.dmg`
+- App: `src-tauri/target/aarch64-apple-darwin/release/bundle/macos/flou.app`
+- DMG: `src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/flou_1.0.0_aarch64.dmg`
 
 Die App ist ad-hoc signiert, nicht mit einer Apple-Developer-ID. Beim DMG-Bau ordnet macOS das Fenster über den Finder an; beim ersten Mal kann dafür eine Rückfrage zur Finder-Steuerung erscheinen.
 
@@ -67,7 +67,7 @@ npm run smoke
 
 ## Windows
 
-- Installer: `Flou-Setup.exe` (NSIS, ohne Administratorrechte, Eintrag im Startmenü, Deinstallation über die Windows-Einstellungen).
+- Installer: `flou-setup.exe` (NSIS, ohne Administratorrechte, Eintrag im Startmenü, Deinstallation über die Windows-Einstellungen).
 - Gebaut wird er automatisch vom Release-Workflow auf einem Windows-Runner, oder lokal auf einem Windows-PC mit `npm run build:win` (Ergebnis unter `src-tauri/target/release/bundle/nsis/`).
 - Daten liegen unter `%APPDATA%\app.flou.desktop`. Kürzel nutzen Strg statt ⌘.
 - Ohne kostenpflichtiges Code-Signing zeigt Windows beim ersten Start „Der Computer wurde durch Windows geschützt“ → „Weitere Informationen“ → „Trotzdem ausführen“.
@@ -78,18 +78,18 @@ npm run smoke
 npm run install-mac
 ```
 
-Kopiert `Flou.app` nach `/Applications` und entfernt das Quarantäne-Flag (`xattr -cr`). Danach startet die App per Doppelklick ohne Gatekeeper-Warnung. Läuft Flou gerade, bricht das Skript ab, damit nichts verloren geht.
+Kopiert `flou.app` nach `/Applications` und entfernt das Quarantäne-Flag (`xattr -cr`). Danach startet die App per Doppelklick ohne Gatekeeper-Warnung. Läuft flou gerade, bricht das Skript ab, damit nichts verloren geht.
 
-Alternativ das DMG öffnen und Flou in den Programme-Ordner ziehen. Weil die App nicht notariell beglaubigt ist, braucht es dann einmalig Rechtsklick → Öffnen, oder:
+Alternativ das DMG öffnen und flou in den Programme-Ordner ziehen. Weil die App nicht notariell beglaubigt ist, braucht es dann einmalig Rechtsklick → Öffnen, oder:
 
 ```bash
-xattr -cr /Applications/Flou.app
+xattr -cr /Applications/flou.app
 ```
 
 ## Veröffentlichen (GitHub)
 
 - `website/`: Webseite mit Download und Installationsanleitung, wird per GitHub Pages veröffentlicht (`.github/workflows/pages.yml`).
-- `.github/workflows/release.yml`: baut bei jedem Tag `v*` die App auf einem Mac- und einem Windows-Runner und veröffentlicht `Flou.dmg`, `Flou-Setup.exe`, die versionierten Dateien und `install.sh` als GitHub-Release.
+- `.github/workflows/release.yml`: baut bei jedem Tag `v*` die App auf einem Mac- und einem Windows-Runner und veröffentlicht `flou.dmg`, `flou-setup.exe`, die versionierten Dateien und `install.sh` als GitHub-Release.
 - Installation für Nutzer ohne Gatekeeper-Warnung: `curl -fsSL https://github.com/<user>/<repo>/releases/latest/download/install.sh | bash`
 
 Neue Version:
@@ -98,6 +98,12 @@ Neue Version:
 npm run version:set -- 1.0.1
 git commit -am "Version 1.0.1" && git tag v1.0.1 && git push && git push --tags
 ```
+
+## Updates
+
+- Beim Start prüft flou im Hintergrund auf eine neue Version und zeigt pro Version einmal einen Hinweis mit „Aktualisieren“ (lädt, installiert, startet neu) oder „Später“. Manuell: „Nach Updates suchen …“.
+- Update-Pakete sind mit einem eigenen Schlüssel signiert (Tauri-Updater). Der private Schlüssel liegt lokal unter `~/.tauri/flou.key` und als GitHub-Secret `TAURI_SIGNING_PRIVATE_KEY`. **Diesen Schlüssel sichern:** Ohne ihn können installierte Versionen keine Updates mehr annehmen.
+- Der öffentliche Schlüssel steht in `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
 
 ## Datenordner
 
@@ -115,13 +121,13 @@ Alle Schreibvorgänge laufen in Transaktionen. Schlägt ein Speichern fehl, blei
 
 ## Backup und Restore
 
-**Automatisch:** Kurz nach dem Start und danach stündlich prüft Flou, ob es für heute schon ein Backup gibt. Falls nicht, entsteht `backups/JJJJ-MM-TT/` mit einer konsistenten Kopie der Datenbank (`VACUUM INTO`) und den Bildern. Es bleiben immer die 7 neuesten Backups erhalten.
+**Automatisch:** Kurz nach dem Start und danach stündlich prüft flou, ob es für heute schon ein Backup gibt. Falls nicht, entsteht `backups/JJJJ-MM-TT/` mit einer konsistenten Kopie der Datenbank (`VACUUM INTO`) und den Bildern. Es bleiben immer die 7 neuesten Backups erhalten.
 
 **Manuell:** Befehlspalette (`⌘K`) → „Backup jetzt erstellen“ oder Menü „Hilfe → Backup jetzt erstellen“.
 
 **Wiederherstellen:**
 
-1. Flou beenden (`⌘Q`).
+1. flou beenden (`⌘Q`).
 2. Den aktuellen Stand sichern:
    ```bash
    cd ~/Library/Application\ Support/app.flou.desktop
@@ -134,9 +140,9 @@ Alle Schreibvorgänge laufen in Transaktionen. Schlägt ein Speichern fehl, blei
    cp backups/2026-10-06/flou.db flou.db
    cp -R backups/2026-10-06/assets/. assets/
    ```
-4. Flou starten.
+4. flou starten.
 
-Zusätzlich bietet der Markdown-Export (`⇧⌘E` für eine Seite, „Workspace als Markdown exportieren …“ für alles) eine lesbare Kopie unabhängig von Flou.
+Zusätzlich bietet der Markdown-Export (`⇧⌘E` für eine Seite, „Workspace als Markdown exportieren …“ für alles) eine lesbare Kopie unabhängig von flou.
 
 ## Tastenkürzel (Auswahl)
 
@@ -192,12 +198,11 @@ Formel-Properties rechnen pro Eintrag, z. B. `prop("Preis") * prop("Menge")` ode
 ## Bewusst nicht enthalten
 
 - Notarisierung durch Apple (braucht ein kostenpflichtiges Entwicklerkonto)
-- Automatische Updates (bräuchten Netzwerkzugriff)
 - Mehrere Fenster gleichzeitig (gleichzeitiges Bearbeiten derselben Seite könnte Daten überschreiben)
 
 ## Datenschutz und Netzwerk
 
-Flou macht zur Laufzeit keine Netzwerkanfragen. Die Content-Security-Policy erlaubt nur lokale Ressourcen. Externe Bilder in eingefügtem HTML werden nicht übernommen, Schriften sind eingebunden. Links öffnen sich nur auf ausdrücklichen ⌘-Klick im Standardbrowser.
+flou macht zur Laufzeit keine Netzwerkanfragen außer der Update-Prüfung: Beim Start fragt die App einmal `latest.json` des neuesten GitHub-Releases ab (nur Versionsnummer, keine Nutzerdaten). Abschaltbar über die Befehlspalette („Automatische Update-Suche an/aus“). Die Content-Security-Policy erlaubt nur lokale Ressourcen. Externe Bilder in eingefügtem HTML werden nicht übernommen, Schriften sind eingebunden. Links öffnen sich nur auf ausdrücklichen ⌘-Klick im Standardbrowser.
 
 ## Lizenzen der Abhängigkeiten
 

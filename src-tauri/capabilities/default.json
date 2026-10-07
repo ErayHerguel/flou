@@ -12,6 +12,8 @@
     "sql:allow-load",
     "sql:allow-select",
     "dialog:allow-open",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

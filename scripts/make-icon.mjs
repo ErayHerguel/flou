@@ -1,4 +1,4 @@
-// Erzeugt das Flou-Logo aus einer einzigen Geometrie-Beschreibung:
+// Erzeugt das flou-Logo aus einer einzigen Geometrie-Beschreibung:
 //   brand/flou-icon.svg        – Master-Icon (1024 px, macOS-Raster mit Schatten)
 //   src/assets/logo.svg        – Kachel ohne Rand/Schatten für die App-Oberfläche
 //   src-tauri/icons/source.png – 1024×1024 PNG mit Transparenz für `tauri icon`

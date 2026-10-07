@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME="Flou"
+APP_NAME="flou"
 BUNDLE_ID="app.flou.desktop"
 ROOT="src-tauri/target/aarch64-apple-darwin/release/bundle"
 APP="$ROOT/macos/$APP_NAME.app"

@@ -1,5 +1,5 @@
-# Baut Flou bei jedem Versions-Tag (z. B. v1.1.0) für macOS und Windows und veröffentlicht ein GitHub-Release:
-# Flou.dmg (Mac), Flou-Setup.exe (Windows), install.sh (Mac-Installation per Terminal).
+# Baut flou bei jedem Versions-Tag (z. B. v1.1.0) für macOS und Windows und veröffentlicht ein GitHub-Release:
+# flou.dmg (Mac), flou-setup.exe (Windows), install.sh (Mac-Installation per Terminal).
 name: Release
 
 on:
@@ -26,16 +26,23 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - run: npm test
-      - run: npm run build:mac
+      - run: npm run build:mac -- --config src-tauri/tauri.updater.conf.json
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
       - name: Dateien sammeln
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Flou_${VERSION}_aarch64.dmg"
+          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/flou_${VERSION}_aarch64.dmg"
           test -f "$DMG" || { echo "DMG fehlt – stimmt die Version (npm run version:set) mit dem Tag überein?"; exit 1; }
           mkdir -p out
-          cp "$DMG" out/Flou.dmg
-          cp "$DMG" "out/Flou_${VERSION}_aarch64.dmg"
+          cp "$DMG" out/flou.dmg
+          cp "$DMG" "out/flou_${VERSION}_aarch64.dmg"
           sed "s|__REPO__|${GITHUB_REPOSITORY}|g" website/install.sh > out/install.sh
+          # Update-Paket für die App (signiert)
+          BUNDLE=src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+          cp "$BUNDLE/flou.app.tar.gz" out/flou_aarch64.app.tar.gz
+          cp "$BUNDLE/flou.app.tar.gz.sig" out/flou_aarch64.app.tar.gz.sig
       - uses: actions/upload-artifact@v4
         with:
           name: macos
@@ -54,16 +61,20 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - run: npm run build:win
+      - run: npm run build:win -- --config src-tauri/tauri.updater.conf.json
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
       - name: Dateien sammeln
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          SETUP="src-tauri/target/release/bundle/nsis/Flou_${VERSION}_x64-setup.exe"
+          SETUP="src-tauri/target/release/bundle/nsis/flou_${VERSION}_x64-setup.exe"
           test -f "$SETUP" || { echo "Installer fehlt – stimmt die Version mit dem Tag überein?"; ls src-tauri/target/release/bundle/nsis; exit 1; }
           mkdir -p out
-          cp "$SETUP" out/Flou-Setup.exe
-          cp "$SETUP" "out/Flou_${VERSION}_x64-setup.exe"
+          cp "$SETUP" out/flou-setup.exe
+          cp "$SETUP" "out/flou_${VERSION}_x64-setup.exe"
+          cp "$SETUP.sig" "out/flou_${VERSION}_x64-setup.exe.sig"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -77,13 +88,34 @@ jobs:
         with:
           path: out
           merge-multiple: true
+      - name: Update-Manifest (latest.json) erzeugen
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          python3 - "$VERSION" "$BASE" <<'PY'
+          import json, sys, datetime
+          version, base = sys.argv[1], sys.argv[2]
+          sig = lambda name: open(f"out/{name}.sig").read().strip()
+          manifest = {
+              "version": version,
+              "notes": f"flou {version}",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "platforms": {
+                  "darwin-aarch64": {"signature": sig("flou_aarch64.app.tar.gz"), "url": f"{base}/flou_aarch64.app.tar.gz"},
+                  "windows-x86_64": {"signature": sig(f"flou_{version}_x64-setup.exe"), "url": f"{base}/flou_{version}_x64-setup.exe"},
+              },
+          }
+          json.dump(manifest, open("out/latest.json", "w"), indent=2)
+          PY
+          rm out/*.sig
+
       - name: Release veröffentlichen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" \
-            --title "Flou $VERSION" \
-            --notes "**Mac** (Apple Silicon, macOS 13+): Flou.dmg laden oder im Terminal \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\`
+            --title "flou $VERSION" \
+            --notes "**Mac** (Apple Silicon, macOS 13+): flou.dmg laden oder im Terminal \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\`
 
-          **Windows** (10/11, 64 Bit): Flou-Setup.exe laden und ausführen. Erscheint „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“."
+          **Windows** (10/11, 64 Bit): flou-setup.exe laden und ausführen. Erscheint „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“."
