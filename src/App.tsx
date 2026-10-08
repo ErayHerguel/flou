@@ -10,7 +10,7 @@ import { createTauriDriver } from './db/tauriDriver';
 import { createPageAndOpen } from './features/actions';
 import { ensureSaved } from './features/lifecycle';
 import { installMenu } from './features/menu';
-import { initPaths } from './lib/assets';
+import { initPaths, openExternal } from './lib/assets';
 import { IS_MAC } from './lib/platform';
 import { indexDatabaseValues } from './features/database/searchIndex';
 import { CommentsDialog } from './features/history/CommentsDialog';
@@ -82,6 +82,21 @@ export function App() {
   useEffect(() => {
     if (boot.status !== 'loading') void invoke('app_ready');
   }, [boot.status]);
+
+  // Links (z. B. in Excalidraw-Dialogen) öffnen im Browser statt die App-Ansicht zu verlassen.
+  // Im Editor gilt weiter: ⌘-Klick öffnet, einfacher Klick setzt den Cursor.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest?.('a[href]');
+      if (!anchor || anchor.closest('.ProseMirror')) return;
+      const href = anchor.getAttribute('href') ?? '';
+      if (!/^(https?:|mailto:)/i.test(href)) return;
+      e.preventDefault();
+      openExternal(href).catch(() => undefined);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
 
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {

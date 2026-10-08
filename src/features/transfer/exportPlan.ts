@@ -11,6 +11,18 @@ export interface ExportInput {
   children: ChildIndex;
   docs: Record<string, JSONContent | null>;
   databases: Record<string, { properties: Property[]; values: Record<string, Record<string, CellValue>> }>;
+  /** Board-Szenen im Excalidraw-Dateiformat (Bilder als Data-URLs) */
+  boards?: Record<string, ExcalidrawFile>;
+}
+
+/** Inhalt einer .excalidraw-Datei (öffnet auch auf excalidraw.com). */
+export interface ExcalidrawFile {
+  type: 'excalidraw';
+  version: 2;
+  source: string;
+  elements: readonly Record<string, unknown>[];
+  appState: { viewBackgroundColor: string };
+  files: Record<string, { id: string; mimeType: string; dataURL: string; created: number }>;
 }
 
 export interface ExportPlan {
@@ -116,7 +128,13 @@ export function planExport(rootIds: string[], input: ExportInput): ExportPlan {
     content += `# ${escapeText(page.title.trim() || 'Ohne Titel')}\n\n`;
     if (page.cover) content += `![](${assetHref(page.cover)})\n\n`;
 
-    if (page.type === 'database') {
+    if (page.type === 'board') {
+      const boardFile = file.replace(/\.md$/, '.excalidraw');
+      const name = boardFile.split('/').pop()!;
+      content += `[Board öffnen (Excalidraw-Datei)](${encodeURIComponent(name)})\n`;
+      const scene = input.boards?.[id];
+      if (scene) files.push({ path: boardFile, content: JSON.stringify(scene, null, 2) });
+    } else if (page.type === 'database') {
       const db = databases[id];
       const rows = children.get(id) ?? [];
       const props = db?.properties ?? [];

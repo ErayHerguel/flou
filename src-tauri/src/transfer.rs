@@ -146,6 +146,37 @@ pub fn import_read(paths: Vec<String>) -> Result<Vec<InFile>, String> {
     Ok(out)
 }
 
+/// Schreibt Bytes (z. B. ein exportiertes Board-Bild) an einen vom Nutzer im Dialog gewählten Pfad.
+/// Der Pfad kommt URL-kodiert im Header `x-path`.
+#[tauri::command]
+pub fn save_file(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+    let raw = request.headers().get("x-path").and_then(|v| v.to_str().ok()).ok_or("Header x-path fehlt")?;
+    let path = percent_decode(raw);
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => fs::write(&path, bytes).map_err(|e| format!("{path}: {e}")),
+        tauri::ipc::InvokeBody::Json(_) => Err("Erwartet Binärdaten".into()),
+    }
+}
+
+/// Minimale Prozent-Dekodierung für Pfade aus encodeURIComponent.
+fn percent_decode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(b) = u8::from_str_radix(&input[i + 1..i + 3], 16) {
+                out.push(b);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// Zeigt eine vom Nutzer gewählte Export-Datei oder einen Ordner im Finder bzw. Explorer.
 #[tauri::command]
 pub fn reveal_path(path: String) -> Result<(), String> {
@@ -158,6 +189,13 @@ pub fn reveal_path(path: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decodes_paths() {
+        assert_eq!(percent_decode("%2FUsers%2Feray%2FBoard%20%C3%BC.png"), "/Users/eray/Board ü.png");
+        assert_eq!(percent_decode("ohne"), "ohne");
+        assert_eq!(percent_decode("kaputt%2"), "kaputt%2");
+    }
 
     #[test]
     fn rejects_escaping_paths() {

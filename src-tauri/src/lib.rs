@@ -35,6 +35,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/004_extras.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "boards",
+            sql: include_str!("../migrations/005_boards.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -108,6 +114,7 @@ pub fn run() {
             transfer::export_write,
             transfer::import_read,
             transfer::reveal_path,
+            transfer::save_file,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten von flou");

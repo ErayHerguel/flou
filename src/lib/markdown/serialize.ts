@@ -160,6 +160,7 @@ function block(node: JSONContent, ctx: SerializeContext): string {
     }
     case 'table':
       return table(node, ctx);
+    case 'boardEmbed':
     case 'pageRef': {
       const target = ctx.page(String(node.attrs?.pageId));
       return target.href ? `[${escapeText(target.title)}](${target.href})` : escapeText(target.title);

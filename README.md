@@ -7,6 +7,7 @@ Kein Konto, kein Server, keine Telemetrie. Alle Daten liegen auf deinem Mac.
 
 - **Seiten** in beliebiger Verschachtelung, Drag-and-drop in der Seitenleiste, Papierkorb mit Wiederherstellen
 - **Block-Editor**: Absatz, Überschriften, Listen, To-dos, Toggle, Zitat, Callout, Code mit Syntax-Highlighting, Trenner, Tabellen, 2/3 Spalten, Bilder mit Unterschrift, Dateianhänge (Audio/Video spielen direkt), Unterseiten, eingebettete Datenbanken
+- **Boards** wie in FigJam (`⌥⌘B` oder `/board`): unendliche Fläche mit Sticky Notes, Formen, Pfeilen, Freihand, Bildern; eingebettet in Seiten mit Vorschau; Export als PNG/SVG und `.excalidraw` (basiert auf Excalidraw, MIT)
 - **Kommentare** an Textstellen (`⇧⌘M`) und **Versionsverlauf** je Seite (eine Version je 10 Minuten, die letzten 50)
 - **Slash-Menü** (`/`) mit Fuzzy-Suche, **Markdown-Shortcuts** beim Tippen, schwebende Formatierungsleiste
 - **Seitenlinks** mit `[[` und Backlinks am Seitenende

@@ -1,4 +1,4 @@
-import { Database, FileText } from 'lucide-react';
+import { Database, FileText, Shapes } from 'lucide-react';
 import type { PageMeta } from '../db/pages';
 
 /** Emoji der Seite oder ein neutrales Standard-Icon. */
@@ -10,7 +10,7 @@ export function PageIcon({ page, size = 16 }: { page: Pick<PageMeta, 'icon' | 't
       </span>
     );
   }
-  const Icon = page.type === 'database' ? Database : FileText;
+  const Icon = page.type === 'database' ? Database : page.type === 'board' ? Shapes : FileText;
   return <Icon size={size} className="shrink-0 text-faint" strokeWidth={1.75} />;
 }
 

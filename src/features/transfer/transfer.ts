@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { APP_NAME } from '../../app.config';
+import { loadBoard } from '../../db/boards';
 import { loadDocs, saveContent } from '../../db/content';
+import { loadFiles } from '../board/files';
 import { loadSchema, loadValues } from '../../db/database';
 import { insertPage, type PageMeta } from '../../db/pages';
 import { commit, flush } from '../../db/saveQueue';
@@ -12,7 +14,7 @@ import { descendantIds } from '../../lib/tree';
 import { usePages } from '../../store/pages';
 import { reportError, toast } from '../../store/toast';
 import { useUI } from '../../store/ui';
-import { planExport, sanitizeName, type ExportInput } from './exportPlan';
+import { planExport, sanitizeName, type ExcalidrawFile, type ExportInput } from './exportPlan';
 import { planImport, resolveImages, type InFile } from './importPlan';
 
 async function exportPages(rootIds: string[], targetDir: string): Promise<void> {
@@ -24,7 +26,20 @@ async function exportPages(rootIds: string[], targetDir: string): Promise<void> 
     const [schema, values] = await Promise.all([loadSchema(id), loadValues(id)]);
     databases[id] = { properties: schema.properties, values };
   }
-  const plan = planExport(rootIds, { pages, children, docs: await loadDocs(ids), databases });
+  const boards: Record<string, ExcalidrawFile> = {};
+  for (const id of ids.filter((pid) => pages[pid].type === 'board')) {
+    const scene = await loadBoard(id);
+    const files = await loadFiles(scene);
+    boards[id] = {
+      type: 'excalidraw',
+      version: 2,
+      source: 'flou',
+      elements: scene.elements.filter((e) => !e.isDeleted),
+      appState: { viewBackgroundColor: scene.appState?.viewBackgroundColor ?? '#ffffff' },
+      files: Object.fromEntries(files.map((f) => [f.id, { id: f.id, mimeType: f.mimeType, dataURL: f.dataURL, created: f.created }])),
+    };
+  }
+  const plan = planExport(rootIds, { pages, children, docs: await loadDocs(ids), databases, boards });
   await invoke('export_write', { root: targetDir, files: plan.files, assets: plan.assets });
   toast(`${plan.files.length} ${plan.files.length === 1 ? 'Seite' : 'Seiten'} exportiert`);
   await invoke('reveal_path', { path: `${targetDir}/${plan.files[0]?.path ?? ''}` });

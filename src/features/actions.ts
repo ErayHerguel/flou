@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getActiveEditor } from '../editor/active';
 import { useDatabases } from '../store/databases';
+import { createBoard } from './board/create';
 import { copyPageMarkdown, printPage } from './share/share';
 import { checkForUpdate, toggleAutoUpdate } from './update/updater';
 import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles } from './transfer/transfer';
@@ -40,6 +41,12 @@ async function createDatabaseAndOpen(parentId: string | null): Promise<void> {
   if (parentId) useUI.getState().setExpanded(parentId, true);
   useUI.getState().open(id);
   useUI.getState().requestFocus('title');
+}
+
+async function createBoardAndOpen(parentId: string | null): Promise<void> {
+  const id = await createBoard(parentId);
+  if (parentId) useUI.getState().setExpanded(parentId, true);
+  useUI.getState().open(id);
 }
 
 function setTheme(theme: Theme) {
@@ -100,6 +107,14 @@ export const actions: AppAction[] = [
     keys: 'Mod+Alt+N',
     menu: 'file',
     run: () => createDatabaseAndOpen(null),
+  },
+  {
+    id: 'page.newBoard',
+    label: 'Neues Board',
+    group: 'Seite',
+    keys: 'Mod+Alt+B',
+    menu: 'file',
+    run: () => createBoardAndOpen(null),
   },
   {
     id: 'page.rename',

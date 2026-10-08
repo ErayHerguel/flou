@@ -1,7 +1,8 @@
 import { WORKSPACE_ID } from '../app.config';
 import { db, type Statement } from './driver';
 
-export type PageType = 'page' | 'database';
+/** 'board' wird als Seite mit Eintrag in `boards` gespeichert (siehe Migration 005). */
+export type PageType = 'page' | 'database' | 'board';
 
 export interface PageMeta {
   id: string;
@@ -50,19 +51,22 @@ const toMeta = (r: PageRow): PageMeta => ({
 /** Lädt alle Seiten inklusive Papierkorb. Inhalte werden erst beim Öffnen geladen. */
 export async function loadPages(): Promise<PageMeta[]> {
   const rows = await db().select<PageRow>(
-    `SELECT id, parent_id, type, title, icon, cover, full_width, sort_order, created_at, updated_at, deleted_at
-     FROM pages WHERE workspace_id = ?`,
+    `SELECT p.id, p.parent_id, CASE WHEN b.page_id IS NULL THEN p.type ELSE 'board' END AS type,
+            p.title, p.icon, p.cover, p.full_width, p.sort_order, p.created_at, p.updated_at, p.deleted_at
+     FROM pages p LEFT JOIN boards b ON b.page_id = p.id WHERE p.workspace_id = ?`,
     [WORKSPACE_ID],
   );
   return rows.map(toMeta);
 }
 
 export function insertPage(p: PageMeta): Statement {
+  // Boards sind in der Tabelle pages normale Seiten; den Board-Eintrag legt insertBoard an.
+  const storedType = p.type === 'board' ? 'page' : p.type;
   return {
     sql: `INSERT INTO pages (id, workspace_id, parent_id, type, title, icon, cover, full_width, sort_order, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
-      p.id, WORKSPACE_ID, p.parentId, p.type, p.title, p.icon, p.cover,
+      p.id, WORKSPACE_ID, p.parentId, storedType, p.title, p.icon, p.cover,
       p.fullWidth ? 1 : 0, p.sortOrder, p.createdAt, p.updatedAt, p.deletedAt,
     ],
   };

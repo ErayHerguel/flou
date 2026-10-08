@@ -57,6 +57,47 @@ export function PageHeader({ page }: { page: PageMeta }) {
   );
 }
 
+/** Kompakter Kopf über einem Board: Icon und Titel in einer Zeile. */
+export function BoardHeader({ page }: { page: PageMeta }) {
+  const [iconPicker, setIconPicker] = useState<Anchor | null>(null);
+  const closePicker = useCallback(() => setIconPicker(null), []);
+  const update = usePages((s) => s.update);
+  const pendingFocus = useUI((s) => s.pendingFocus);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (useUI.getState().consumeFocus(page.id, 'title')) ref.current?.select();
+  }, [pendingFocus, page.id]);
+  return (
+    <div className="flex items-center gap-2 px-6 py-2">
+      <button
+        onClick={(e) => setIconPicker(e.currentTarget.getBoundingClientRect())}
+        className="flex h-8 w-8 items-center justify-center rounded-md text-xl hover:bg-hover"
+        aria-label="Icon ändern"
+      >
+        {page.icon ?? <Smile size={16} className="text-faint" />}
+      </button>
+      <input
+        ref={ref}
+        value={page.title}
+        placeholder="Ohne Titel"
+        onChange={(e) => update(page.id, { title: e.target.value })}
+        className="min-w-0 flex-1 bg-transparent text-lg font-semibold outline-none placeholder:text-faint"
+      />
+      {iconPicker && (
+        <Popover anchor={iconPicker} onClose={closePicker}>
+          <EmojiPicker
+            onPick={(emoji) => {
+              update(page.id, { icon: emoji });
+              setIconPicker(null);
+            }}
+            onRemove={page.icon ? () => (update(page.id, { icon: null }), setIconPicker(null)) : undefined}
+          />
+        </Popover>
+      )}
+    </div>
+  );
+}
+
 function TitleInput({ page }: { page: PageMeta }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const update = usePages((s) => s.update);

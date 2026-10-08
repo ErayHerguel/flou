@@ -1,4 +1,6 @@
 import { Editor } from '../../editor/Editor';
+import { BoardView } from '../board/BoardView';
+import { BoardHeader } from './PageHeader';
 import { DatabaseView } from '../database/DatabaseView';
 import { PropertiesPanel } from '../database/PropertiesPanel';
 import { cx } from '../../lib/cx';
@@ -11,6 +13,16 @@ export function PageView({ id }: { id: string }) {
   const page = usePages((s) => s.pages[id]);
   const parentType = usePages((s) => (page?.parentId ? s.pages[page.parentId]?.type : undefined));
   if (!page || page.deletedAt !== null) return null;
+  if (page.type === 'board') {
+    return (
+      <div className="flex h-full flex-col">
+        <BoardHeader page={page} />
+        <div className="min-h-0 flex-1 border-t border-border">
+          <BoardView key={id} pageId={id} />
+        </div>
+      </div>
+    );
+  }
   const isDatabase = page.type === 'database';
   const width = page.fullWidth
     ? 'max-w-none'

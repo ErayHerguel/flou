@@ -640,3 +640,55 @@ div.block-handle-button {
   outline: 2px solid var(--c-accent-soft);
   border-radius: var(--radius-md);
 }
+
+/* ---------- Boards ---------- */
+.flou-board .excalidraw {
+  --ui-font: var(--font-sans);
+  --color-primary: var(--c-accent);
+}
+.flou-editor .board-embed {
+  margin: 10px 0;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  white-space: normal;
+}
+.flou-editor .board-embed-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c-border);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+}
+.flou-editor .board-embed-head:hover {
+  background: var(--c-hover);
+}
+.flou-editor .board-embed-arrow {
+  margin-left: auto;
+  color: var(--c-faint);
+}
+.flou-editor .board-embed-body {
+  max-height: 360px;
+  padding: 8px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.flou-editor .board-preview svg {
+  /* Nie über Originalgröße vergrößern, nur verkleinern */
+  display: block;
+  max-width: 100%;
+  max-height: 340px;
+  width: auto;
+  height: auto;
+  margin: 0 auto;
+}
+.flou-editor .board-embed-body {
+  background: #ffffff;
+}
+.flou-editor .board-embed.ProseMirror-selectednode {
+  outline: 2px solid var(--c-accent-soft);
+}

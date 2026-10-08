@@ -7,6 +7,7 @@ import {
   Columns3,
   Database,
   Paperclip,
+  Shapes,
   Sheet,
   Table as TableIcon,
   FileText,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import { importFile, pickFile, pickImage } from '../../lib/assets';
 import { columnsContent } from '../nodes/columns';
+import { createBoard } from '../../features/board/create';
 import { useDatabases } from '../../store/databases';
 import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
@@ -217,6 +219,22 @@ export const SLASH_ITEMS: SlashItem[] = [
     icon: Database,
     run: (editor, range, ctx) =>
       void createSubpageBlock(editor, range, ctx.pageId, (parentId) => useDatabases.getState().createDatabase(parentId)),
+  },
+  {
+    id: 'board',
+    title: 'Board',
+    description: 'Whiteboard mit Sticky Notes, Formen und Pfeilen',
+    group: 'Seiten',
+    keywords: ['board', 'whiteboard', 'figjam', 'canvas', 'zeichnen', 'sticky', 'mindmap', 'diagramm'],
+    icon: Shapes,
+    run: (editor, range, ctx) => {
+      block(editor, range).run();
+      createBoard(ctx.pageId)
+        .then((pageId) => {
+          if (!editor.isDestroyed) editor.chain().focus().insertContent({ type: 'boardEmbed', attrs: { pageId } }).run();
+        })
+        .catch((err) => reportError('Board konnte nicht angelegt werden', err));
+    },
   },
   {
     id: 'inlineDatabase',

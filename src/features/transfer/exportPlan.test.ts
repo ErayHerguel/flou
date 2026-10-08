@@ -83,3 +83,22 @@ describe('Export-Planung', () => {
     expect(plan.files[1].content.startsWith('---\n"Status": "Offen"\n"Fertig": true\n---\n\n# A \\| B\n')).toBe(true);
   });
 });
+
+describe('Board-Export', () => {
+  it('schreibt Boards als .excalidraw-Datei mit Verweis im Markdown', () => {
+    const pages = { b: page('b', 'Ideen / Mai', null, { type: 'board' }) };
+    const scene = {
+      type: 'excalidraw' as const,
+      version: 2 as const,
+      source: 'flou',
+      elements: [{ id: 'e1', type: 'text', text: 'Hallo' }],
+      appState: { viewBackgroundColor: '#ffffff' },
+      files: {},
+    };
+    const plan = planExport(['b'], { pages, children: buildChildIndex(pages), docs: {}, databases: {}, boards: { b: scene } });
+    const byPath = Object.fromEntries(plan.files.map((f) => [f.path, f.content]));
+    expect(Object.keys(byPath).sort()).toEqual(['Ideen Mai.excalidraw', 'Ideen Mai.md']);
+    expect(byPath['Ideen Mai.md']).toBe('# Ideen / Mai\n\n[Board öffnen (Excalidraw-Datei)](Ideen%20Mai.excalidraw)\n');
+    expect(JSON.parse(byPath['Ideen Mai.excalidraw']).elements[0].text).toBe('Hallo');
+  });
+});

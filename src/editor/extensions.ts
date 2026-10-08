@@ -11,6 +11,7 @@ import { Callout } from './nodes/callout';
 import { CodeBlock } from './nodes/codeBlock';
 import { Column, Columns } from './nodes/columns';
 import { Comment } from './nodes/comment';
+import { BoardEmbed } from './nodes/boardEmbed';
 import { DatabaseBlock } from './nodes/databaseBlock';
 import { FileBlock } from './nodes/file';
 import { Image } from './nodes/image';
@@ -75,6 +76,7 @@ export function createExtensions(pageId: string): Extensions {
     Column,
     Comment,
     DatabaseBlock,
+    BoardEmbed,
     PageRef,
     PageLink,
     Placeholder.configure({
