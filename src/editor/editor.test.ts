@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { TextSelection } from '@tiptap/pm/state';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Editor } from '@tiptap/core';
 import { collectLinkTargets } from '../lib/doc';
 import { createTestEditor, p, pressKey, textOf, topLevelTypes, typeText } from '../test/editor';
-import { moveBlock } from './dragHandle';
+import { dissolveEmptiedColumns, movableBlock, moveBlock } from './dragHandle';
 import { SLASH_ITEMS } from './suggest/slashItems';
 import { docText } from './text';
 
@@ -79,6 +79,98 @@ describe('Blöcke verschieben', () => {
     moveBlock(editor, -1);
     editor.commands.undo();
     expect(textOf(editor)).toEqual(['A', 'B']);
+  });
+});
+
+describe('Verschiebbare Blöcke', () => {
+  /** Startposition des Textblocks mit genau diesem Text. */
+  function textblock(text: string): number {
+    let found = -1;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.isTextblock && node.textContent === text) found = pos;
+      return found < 0;
+    });
+    return found;
+  }
+  const typeAt = (pos: number | null) => (pos === null ? null : editor.state.doc.nodeAt(pos)?.type.name);
+  const columns = (...cols: string[][]) => ({
+    type: 'columns',
+    content: cols.map((texts) => ({ type: 'column', content: texts.map((t) => p(t)) })),
+  });
+
+  it('greift jeden Block in Spalten einzeln', () => {
+    editor = createTestEditor({ type: 'doc', content: [columns(['A', 'B'], ['C']), p('D')] });
+    expect(typeAt(movableBlock(editor.state.doc, textblock('B')))).toBe('paragraph');
+    expect(movableBlock(editor.state.doc, textblock('C'))).toBe(textblock('C'));
+  });
+
+  it('steht mit der ersten Zeile für Toggle, Callout und Listeneintrag, sonst für den Block selbst', () => {
+    editor = createTestEditor({
+      type: 'doc',
+      content: [
+        { type: 'toggle', attrs: { open: true }, content: [p('Kopf'), p('Inhalt')] },
+        { type: 'callout', content: [p('Hinweis'), p('Zweiter')] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [p('Punkt'), p('Weiter')] }] },
+        p('Ende'),
+      ],
+    });
+    const doc = editor.state.doc;
+    expect(typeAt(movableBlock(doc, textblock('Kopf')))).toBe('toggle');
+    expect(movableBlock(doc, textblock('Inhalt'))).toBe(textblock('Inhalt'));
+    expect(typeAt(movableBlock(doc, textblock('Hinweis')))).toBe('callout');
+    expect(movableBlock(doc, textblock('Zweiter'))).toBe(textblock('Zweiter'));
+    expect(typeAt(movableBlock(doc, textblock('Punkt')))).toBe('listItem');
+    expect(movableBlock(doc, textblock('Weiter'))).toBe(textblock('Weiter'));
+  });
+
+  it('verschiebt Tabellen als Ganzes', () => {
+    editor = createTestEditor('<table><tr><td><p>Zelle</p></td></tr></table><p>Ende</p>');
+    expect(typeAt(movableBlock(editor.state.doc, textblock('Zelle')))).toBe('table');
+  });
+
+  it('verschiebt Blöcke innerhalb einer Spalte per Tastatur', () => {
+    editor = createTestEditor({ type: 'doc', content: [columns(['A', 'B'], ['C']), p('D')] });
+    cursorInBlock(1);
+    expect(moveBlock(editor, -1)).toBe(true);
+    const first: string[] = [];
+    editor.state.doc.firstChild!.firstChild!.forEach((n) => first.push(n.textContent));
+    expect(first).toEqual(['B', 'A']);
+  });
+
+  it('verlässt den Zieh-Zustand, wenn das Ziehen außerhalb des Editors endet', () => {
+    vi.useFakeTimers();
+    try {
+      editor = createTestEditor({ type: 'doc', content: [p('A'), p('B')] });
+      const grip = editor.view.dom.parentElement!.querySelector('.block-handle div.block-handle-button')!;
+      editor.view.dragging = { slice: editor.state.doc.slice(0, 3), move: true };
+      grip.dispatchEvent(new Event('dragend'));
+      vi.advanceTimersByTime(100);
+      expect(editor.view.dragging).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('löst eine Spalte auf, die durch Verschieben leer wurde', () => {
+    editor = createTestEditor({ type: 'doc', content: [columns(['A'], ['B']), p('D')] });
+    const before = editor.state.doc;
+    const tr = editor.state.tr;
+    const a = textblock('A');
+    tr.delete(a, a + before.nodeAt(a)!.nodeSize);
+    dissolveEmptiedColumns(before, tr.mapping, tr);
+    editor.view.dispatch(tr);
+    expect(topLevelTypes(editor)).toEqual(['paragraph', 'paragraph']);
+    expect(textOf(editor)).toEqual(['B', 'D']);
+  });
+
+  it('lässt absichtlich leere Spalten stehen', () => {
+    editor = createTestEditor({ type: 'doc', content: [columns([''], ['B'], ['C']), p('D')] });
+    const before = editor.state.doc;
+    const tr = editor.state.tr;
+    const c = textblock('C');
+    tr.insertText('!', c + 1);
+    dissolveEmptiedColumns(before, tr.mapping, tr);
+    expect(tr.doc.firstChild!.childCount).toBe(3);
   });
 });
 

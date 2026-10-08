@@ -13,7 +13,7 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { isSelfOrDescendant, type ChildIndex, type PageMap } from '../../lib/tree';
-import { usePages } from '../../store/pages';
+import { canContain, usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
 import { TreeRow, type DropPosition } from './TreeRow';
 
@@ -64,7 +64,7 @@ export function PageTree() {
       const pointerY = (e.activatorEvent as PointerEvent).clientY + e.delta.y;
       const rel = (pointerY - over.rect.top) / over.rect.height;
       let position: DropPosition = rel < 0.28 ? 'before' : rel > 0.72 ? 'after' : 'inside';
-      if (position === 'inside' && overPage.type === 'database') position = rel < 0.5 ? 'before' : 'after';
+      if (position === 'inside' && !canContain(overPage.type, pages[dragged]?.type)) position = rel < 0.5 ? 'before' : 'after';
       const parentId = position === 'inside' ? overId : overPage.parentId;
       if (isSelfOrDescendant(pages, dragged, parentId)) return null;
       return { id: overId, position };

@@ -5,6 +5,7 @@ import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { BoardPreview } from '../../features/board/BoardPreview';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
+import { isDropEvent } from '../dom';
 
 function BoardEmbedView({ node }: NodeViewProps) {
   const id = String(node.attrs.pageId);
@@ -37,6 +38,6 @@ export const BoardEmbed = Node.create({
   parseHTML: () => [{ tag: 'div[data-board]', getAttrs: (e) => ({ pageId: (e as HTMLElement).getAttribute('data-board') }) }],
   renderHTML: ({ node }) => ['div', { 'data-board': node.attrs.pageId }],
   addNodeView() {
-    return ReactNodeViewRenderer(BoardEmbedView, { stopEvent: () => true });
+    return ReactNodeViewRenderer(BoardEmbedView, { stopEvent: ({ event }) => !isDropEvent(event) });
   },
 });

@@ -498,6 +498,16 @@
 div.block-handle-button {
   cursor: grab;
 }
+/* In Spalten nur der Greifer, damit er in den Spaltenabstand passt. */
+.block-handle.is-compact > button {
+  display: none;
+}
+/* Beim Zeigen auf den Greifer: dieser Block wird verschoben. */
+.flou-editor .is-drag-target {
+  border-radius: var(--radius-sm);
+  background: var(--c-accent-soft);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
 
 /* ---------- Tabellen ---------- */
 .flou-editor .tableWrapper {

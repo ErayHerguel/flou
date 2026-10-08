@@ -5,6 +5,7 @@ import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { DatabaseView } from '../../features/database/DatabaseView';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
+import { isDropEvent } from '../dom';
 
 function DatabaseBlockView({ node }: NodeViewProps) {
   const id = String(node.attrs.databaseId);
@@ -49,6 +50,6 @@ export const DatabaseBlock = Node.create({
 
   addNodeView() {
     // Ereignisse innerhalb der Datenbank gehören der Datenbank, nicht dem Editor.
-    return ReactNodeViewRenderer(DatabaseBlockView, { stopEvent: () => true });
+    return ReactNodeViewRenderer(DatabaseBlockView, { stopEvent: ({ event }) => !isDropEvent(event) });
   },
 });

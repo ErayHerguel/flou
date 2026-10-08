@@ -47,6 +47,15 @@ interface PagesState {
   emptyTrash(): Promise<void>;
 }
 
+/**
+ * Darf eine Seite dieses Typs unter `parent` liegen? Normale Seiten nehmen alles auf, Datenbanken nur Seiten
+ * (sie werden zu Einträgen), Boards haben keine Unterseiten.
+ */
+export function canContain(parent: PageType | undefined, child: PageType | undefined): boolean {
+  if (parent === 'page') return true;
+  return parent === 'database' && child === 'page';
+}
+
 /** Vergibt fortlaufende sort_order-Werte und liefert nur die nötigen UPDATEs. */
 function reorder(pages: PageMap, parentId: string | null, ordered: string[]) {
   const next = { ...pages };
@@ -124,7 +133,7 @@ export const usePages = create<PagesState>((set, get) => {
     async move(id, parentId, index) {
       const { pages, children } = get();
       if (!pages[id] || isSelfOrDescendant(pages, id, parentId)) return;
-      if (parentId && pages[parentId]?.type === 'database' && pages[id].type === 'database') return;
+      if (parentId && !canContain(pages[parentId]?.type, pages[id].type)) return;
       const siblings = children.get(parentId) ?? [];
       const { next, statements } = reorder(pages, parentId, insertAt(siblings, id, index));
       if (statements.length === 0) return;

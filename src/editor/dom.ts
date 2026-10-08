@@ -18,6 +18,9 @@ export function icon(name: keyof typeof ICONS, size = 16): SVGSVGElement {
   return wrapper.firstElementChild as SVGSVGElement;
 }
 
+/** Ablegen beim Verschieben soll auch über eingebetteten Ansichten (Board, Datenbank) beim Editor ankommen. */
+export const isDropEvent = (event: Event) => ['dragenter', 'dragover', 'dragleave', 'drop'].includes(event.type);
+
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
