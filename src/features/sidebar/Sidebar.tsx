@@ -6,7 +6,10 @@ import { IconButton } from '../../components/IconButton';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { usePages } from '../../store/pages';
 import { cx } from '../../lib/cx';
+import { GUEST } from '../../lib/mode';
 import { IS_MAC } from '../../lib/platform';
+import { GuestIdentity } from '../collab/guest/GuestIdentity';
+import { ShareButton } from '../collab/host/ShareButton';
 import { useUI, type Theme } from '../../store/ui';
 import { actionById } from '../actions';
 import { formatCombo } from '../shortcuts/keys';
@@ -43,7 +46,7 @@ export function Sidebar() {
       style={{ width: open ? width : 0 }}
     >
       <div className={cx('flex h-full flex-col overflow-hidden', !open && 'invisible')} style={{ width }}>
-        <div data-tauri-drag-region className={IS_MAC ? 'h-11 shrink-0' : 'h-2 shrink-0'} />
+        <div data-tauri-drag-region className={IS_MAC && !GUEST ? 'h-11 shrink-0' : 'h-2 shrink-0'} />
         <div className="group flex h-9 shrink-0 items-center gap-2 px-3">
           <img src={logo} alt="" className="h-5 w-5 rounded-[5px]" draggable={false} />
           <span className="flex-1 truncate text-sm font-semibold text-text">{APP_NAME}</span>
@@ -59,9 +62,11 @@ export function Sidebar() {
           <SidebarButton icon={Search} onClick={() => void palette.run()} hint={palette.keys && formatCombo(palette.keys)}>
             Suchen
           </SidebarButton>
-          <SidebarButton icon={Plus} onClick={() => void newPage.run()} hint={newPage.keys && formatCombo(newPage.keys)}>
-            Neue Seite
-          </SidebarButton>
+          {!GUEST && (
+            <SidebarButton icon={Plus} onClick={() => void newPage.run()} hint={newPage.keys && formatCombo(newPage.keys)}>
+              Neue Seite
+            </SidebarButton>
+          )}
           {hasHome && (
             <SidebarButton icon={House} onClick={() => useUI.getState().open(homeId!)} hint={formatCombo('Mod+Shift+O')}>
               Startseite
@@ -90,15 +95,22 @@ export function Sidebar() {
           </>
         )}
 
-        <div className="mt-4 mb-1 px-4 text-2xs font-medium tracking-wide text-faint uppercase">Seiten</div>
+        <div className="mt-4 mb-1 px-4 text-2xs font-medium tracking-wide text-faint uppercase">{GUEST ? 'Mit dir geteilt' : 'Seiten'}</div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2">
           <PageTree />
         </div>
 
         <div className="flex shrink-0 items-center gap-1 border-t border-border px-2 py-2">
-          <SidebarButton icon={Trash2} onClick={() => useUI.getState().setOverlay('trash')} className="flex-1">
-            Papierkorb
-          </SidebarButton>
+          {GUEST ? (
+            <GuestIdentity />
+          ) : (
+            <>
+              <SidebarButton icon={Trash2} onClick={() => useUI.getState().setOverlay('trash')} className="flex-1">
+                Papierkorb
+              </SidebarButton>
+              <ShareButton />
+            </>
+          )}
           <IconButton
             icon={ThemeIcon}
             label={`Erscheinungsbild: ${THEME_LABEL[theme]}`}

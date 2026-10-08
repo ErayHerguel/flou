@@ -1,4 +1,6 @@
 import { Extension, type Extensions } from '@tiptap/core';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import Highlight from '@tiptap/extension-highlight';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
@@ -19,6 +21,7 @@ import { PageLink } from './nodes/pageLink';
 import { PageRef } from './nodes/pageRef';
 import { Toggle } from './nodes/toggle';
 import { PageLinkSuggestion, SlashCommand } from './suggest/extensions';
+import type { DocBinding } from '../features/collab/sources';
 
 interface ToolbarStorage {
   openLink: (() => void) | null;
@@ -51,11 +54,12 @@ const ToolbarShortcuts = Extension.create<object, ToolbarStorage>({
   },
 });
 
-export function createExtensions(pageId: string): Extensions {
+/** collab: gemeinsames Dokument (Yjs) statt lokalem Inhalt; der Verlauf läuft dann über Yjs. */
+export function createExtensions(pageId: string, collab?: Pick<DocBinding, 'doc' | 'awareness' | 'user'>): Extensions {
   return [
     StarterKit.configure({
       codeBlock: false,
-      undoRedo: { depth: 500, newGroupDelay: 400 },
+      undoRedo: collab ? false : { depth: 500, newGroupDelay: 400 },
       link: { openOnClick: false, autolink: true, linkOnPaste: true },
       heading: { levels: [1, 2, 3] },
       dropcursor: { color: 'var(--c-accent)', width: 2 },
@@ -89,5 +93,11 @@ export function createExtensions(pageId: string): Extensions {
     ImageInput,
     LinkClick,
     ToolbarShortcuts,
+    ...(collab
+      ? [
+          Collaboration.configure({ document: collab.doc }),
+          CollaborationCaret.configure({ provider: { awareness: collab.awareness }, user: collab.user }),
+        ]
+      : []),
   ];
 }

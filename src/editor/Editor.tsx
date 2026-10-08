@@ -1,9 +1,10 @@
 import type { JSONContent } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, useEditor, type Editor as TiptapEditor } from '@tiptap/react';
 import { useEffect, useMemo, useState } from 'react';
 import { loadDoc, saveContent } from '../db/content';
 import { flush, schedule } from '../db/saveQueue';
+import { useCanEdit, useCollab, type DocBinding } from '../features/collab/sources';
 import { collectLinkTargets } from '../lib/doc';
 import { usePages } from '../store/pages';
 import { useUI } from '../store/ui';
@@ -25,6 +26,14 @@ function scheduleSave(pageId: string, doc: PMNode) {
 }
 
 export function Editor({ pageId }: { pageId: string }) {
+  const docs = useCollab((s) => s.docs);
+  const epoch = useCollab((s) => s.epoch);
+  // Gemeinsames Arbeiten: Inhalt kommt aus dem geteilten Dokument statt aus der Datenbank.
+  if (docs) return <SharedEditor key={epoch} pageId={pageId} source={docs} />;
+  return <LocalEditor pageId={pageId} />;
+}
+
+function LocalEditor({ pageId }: { pageId: string }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
 
   useEffect(() => {
@@ -58,7 +67,53 @@ function LoadedEditor({ pageId, initial }: { pageId: string; initial: JSONConten
     editorProps: { attributes: { class: 'flou-editor', spellcheck: 'true' } },
     onUpdate: ({ editor: e }) => scheduleSave(pageId, e.state.doc),
   });
+  return <EditorChrome pageId={pageId} editor={editor} />;
+}
 
+function SharedEditor({ pageId, source }: { pageId: string; source: (pageId: string) => Promise<DocBinding> }) {
+  const [binding, setBinding] = useState<DocBinding | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    let acquired: DocBinding | null = null;
+    source(pageId)
+      .then((b) => {
+        if (!alive) return b.release();
+        acquired = b;
+        setBinding(b);
+      })
+      .catch((err) => alive && setError(err instanceof Error ? err.message : String(err)));
+    return () => {
+      alive = false;
+      acquired?.release();
+    };
+  }, [pageId, source]);
+
+  if (error) {
+    return <div className="rounded-md border border-danger px-4 py-3 text-sm text-danger">Diese Seite konnte nicht geöffnet werden. ({error})</div>;
+  }
+  if (!binding) return null;
+  return <BoundEditor pageId={pageId} binding={binding} />;
+}
+
+function BoundEditor({ pageId, binding }: { pageId: string; binding: DocBinding }) {
+  const editable = useCanEdit(pageId);
+  const extensions = useMemo(() => createExtensions(pageId, binding), [pageId, binding]);
+  const editor = useEditor({
+    extensions,
+    editable,
+    immediatelyRender: true,
+    shouldRerenderOnTransaction: false,
+    editorProps: { attributes: { class: 'flou-editor', spellcheck: 'true' } },
+  });
+  useEffect(() => {
+    if (editor.isEditable !== editable) editor.setEditable(editable);
+  }, [editor, editable]);
+  return <EditorChrome pageId={pageId} editor={editor} />;
+}
+
+function EditorChrome({ pageId, editor }: { pageId: string; editor: TiptapEditor }) {
   useEffect(() => {
     setActiveEditor(editor);
     return () => {

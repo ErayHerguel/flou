@@ -3,6 +3,7 @@ import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { loadDocs } from '../../db/content';
 import { loadSchema, loadValues } from '../../db/database';
 import { flush } from '../../db/saveQueue';
+import { GUEST } from '../../lib/mode';
 import { IS_MAC } from '../../lib/platform';
 import { usePages } from '../../store/pages';
 import { reportError, toast } from '../../store/toast';
@@ -13,7 +14,7 @@ import { planExport, type ExportInput } from '../transfer/exportPlan';
 export async function printPage(): Promise<void> {
   try {
     await flush();
-    if (IS_MAC) await invoke('print_page');
+    if (IS_MAC && !GUEST) await invoke('print_page');
     else window.print();
   } catch (err) {
     reportError('Drucken fehlgeschlagen', err);

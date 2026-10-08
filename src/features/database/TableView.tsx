@@ -71,7 +71,7 @@ export function TableView({ databaseId, view, data, rows, editingId, onEditingDo
     <div key={id} className="relative shrink-0 border-r border-border" style={{ width: widthOf(id) }}>
       <button
         onClick={(e) => setMenu({ property, anchor: e.currentTarget.getBoundingClientRect() })}
-        className="flex h-8 w-full items-center gap-1.5 px-2 text-left hover:bg-hover"
+        className="db-edit-click flex h-8 w-full items-center gap-1.5 px-2 text-left hover:bg-hover"
       >
         <Icon size={13} className="shrink-0" />
         <span className="truncate">{label}</span>
@@ -93,7 +93,7 @@ export function TableView({ databaseId, view, data, rows, editingId, onEditingDo
           <button
             aria-label="Property hinzufügen"
             onClick={(e) => setAddAnchor(e.currentTarget.getBoundingClientRect())}
-            className="flex h-8 w-10 shrink-0 items-center justify-center hover:bg-hover"
+            className="db-edit flex h-8 w-10 shrink-0 items-center justify-center hover:bg-hover"
           >
             <Plus size={14} />
           </button>
@@ -125,7 +125,7 @@ export function TableView({ databaseId, view, data, rows, editingId, onEditingDo
           </div>
         ))}
 
-        <button onClick={onCreate} className="flex h-8 w-full items-center gap-1.5 px-2 text-sm text-faint hover:bg-hover hover:text-muted">
+        <button onClick={onCreate} className="db-edit flex h-8 w-full items-center gap-1.5 px-2 text-sm text-faint hover:bg-hover hover:text-muted">
           <Plus size={14} /> Neu
         </button>
       </div>

@@ -24,7 +24,7 @@ import {
   Type,
   type LucideIcon,
 } from 'lucide-react';
-import { importFile, pickFile, pickImage } from '../../lib/assets';
+import { pickAndStoreFile, pickImage } from '../../lib/assets';
 import { columnsContent } from '../nodes/columns';
 import { createBoard } from '../../features/board/create';
 import { useDatabases } from '../../store/databases';
@@ -191,11 +191,10 @@ export const SLASH_ITEMS: SlashItem[] = [
     icon: Paperclip,
     run: (editor, range) => {
       block(editor, range).run();
-      pickFile()
-        .then(async (picked) => {
-          if (!picked) return;
-          const stored = await importFile(picked.path);
-          editor.chain().focus().insertContent({ type: 'file', attrs: { src: stored.src, name: picked.name, size: stored.size } }).run();
+      pickAndStoreFile()
+        .then((stored) => {
+          if (!stored) return;
+          editor.chain().focus().insertContent({ type: 'file', attrs: { src: stored.src, name: stored.name, size: stored.size } }).run();
         })
         .catch((err) => reportError('Datei konnte nicht eingefügt werden', err));
     },

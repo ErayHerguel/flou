@@ -8,6 +8,7 @@ import { useDatabases, type DatabaseData } from '../../store/databases';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
 import type { Row } from './query';
+import { useCanEdit } from '../collab/sources';
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const monthFormat = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
@@ -29,6 +30,7 @@ export function CalendarView({ databaseId, view, data, rows, onCreate }: Calenda
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const editable = useCanEdit(databaseId);
 
   if (!dateProp) {
     const dates = data.properties.filter((p) => p.type === 'date');
@@ -77,7 +79,7 @@ export function CalendarView({ databaseId, view, data, rows, onCreate }: Calenda
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={onDragEnd}>
+    <DndContext sensors={editable ? sensors : []} collisionDetection={pointerWithin} onDragEnd={onDragEnd}>
       <div className="mb-2 flex items-center gap-1">
         <span className="mr-auto text-base font-semibold">{monthFormat.format(month)}</span>
         <button aria-label="Voriger Monat" onClick={() => shift(-1)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-hover">
@@ -107,7 +109,7 @@ export function CalendarView({ databaseId, view, data, rows, onCreate }: Calenda
                 <button
                   aria-label="Eintrag an diesem Tag anlegen"
                   onClick={() => onCreate({ [dateProp.id]: key })}
-                  className="flex h-5 w-5 items-center justify-center rounded-sm text-faint opacity-0 hover:bg-hover group-hover:opacity-100"
+                  className="db-edit flex h-5 w-5 items-center justify-center rounded-sm text-faint opacity-0 hover:bg-hover group-hover:opacity-100"
                 >
                   <Plus size={13} />
                 </button>

@@ -63,7 +63,7 @@ export const FileBlock = Node.create({
       const meta = el('span', 'file-size');
       meta.textContent = formatSize(size);
       chip.append(label, meta);
-      chip.addEventListener('click', () => openAsset(src).catch((err) => reportError('Datei konnte nicht geöffnet werden', err)));
+      chip.addEventListener('click', () => openAsset(src, name).catch((err) => reportError('Datei konnte nicht geöffnet werden', err)));
       dom.append(chip);
       return {
         dom,

@@ -1,0 +1,60 @@
+import type { Grant, Role } from '../features/collab/access';
+import { db, type Statement } from './driver';
+
+/** Eingeladene Person. Der Token ist der geheime Teil ihres Einladungslinks. */
+export interface Member {
+  id: string;
+  name: string;
+  token: string;
+  color: string;
+  createdAt: number;
+}
+
+/** Gut unterscheidbare Farben für Cursor und Avatare. */
+export const MEMBER_COLORS = ['#e5484d', '#f76b15', '#ffc53d', '#30a46c', '#12a594', '#0090ff', '#6e56cf', '#d6409f'];
+
+export async function loadMembers(): Promise<Member[]> {
+  const rows = await db().select<{ id: string; name: string; token: string; color: string; created_at: number }>(
+    'SELECT id, name, token, color, created_at FROM share_members ORDER BY created_at',
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name, token: r.token, color: r.color, createdAt: Number(r.created_at) }));
+}
+
+export async function loadGrants(): Promise<Grant[]> {
+  const rows = await db().select<{ member_id: string; page_id: string; role: Role }>('SELECT member_id, page_id, role FROM share_grants');
+  return rows.map((r) => ({ memberId: r.member_id, pageId: r.page_id, role: r.role }));
+}
+
+/** 256 Bit Zufall als Hex: nicht zu erraten. */
+export function newToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function insertMember(m: Member): Statement {
+  return {
+    sql: 'INSERT INTO share_members (id, name, token, color, created_at) VALUES (?, ?, ?, ?, ?)',
+    params: [m.id, m.name, m.token, m.color, m.createdAt],
+  };
+}
+
+export function renameMember(id: string, name: string): Statement {
+  return { sql: 'UPDATE share_members SET name = ? WHERE id = ?', params: [name, id] };
+}
+
+/** Freigaben folgen per ON DELETE CASCADE. */
+export function deleteMember(id: string): Statement {
+  return { sql: 'DELETE FROM share_members WHERE id = ?', params: [id] };
+}
+
+export function setGrant(memberId: string, pageId: string, role: Role): Statement {
+  return {
+    sql: `INSERT INTO share_grants (member_id, page_id, role) VALUES (?, ?, ?)
+          ON CONFLICT(member_id, page_id) DO UPDATE SET role = excluded.role`,
+    params: [memberId, pageId, role],
+  };
+}
+
+export function deleteGrant(memberId: string, pageId: string): Statement {
+  return { sql: 'DELETE FROM share_grants WHERE member_id = ? AND page_id = ?', params: [memberId, pageId] };
+}

@@ -64,7 +64,7 @@ export function ViewTabs({ views, activeId, onSelect }: { views: View[]; activeI
       <button
         aria-label="Ansicht hinzufügen"
         onClick={(e) => setAddAnchor(e.currentTarget.getBoundingClientRect())}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-muted"
+        className="db-edit flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-muted"
       >
         <Plus size={14} />
       </button>

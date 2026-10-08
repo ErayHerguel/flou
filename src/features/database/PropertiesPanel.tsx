@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { useCanEdit } from '../collab/sources';
 import { useCallback, useEffect, useState } from 'react';
 import { Popover, type Anchor } from '../../components/Popover';
 import type { Property, PropertyType } from '../../db/database';
@@ -12,6 +13,7 @@ import { PropertyMenu } from './PropertyMenu';
 /** Eigenschaften eines Datenbank-Eintrags oberhalb seines Seiteninhalts. */
 export function PropertiesPanel({ databaseId, rowId }: { databaseId: string; rowId: string }) {
   const data = useDatabases((s) => s.data[databaseId]);
+  const editable = useCanEdit(databaseId);
   const [menu, setMenu] = useState<{ property: Property; anchor: Anchor } | null>(null);
   const [addAnchor, setAddAnchor] = useState<Anchor | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -33,14 +35,14 @@ export function PropertiesPanel({ databaseId, rowId }: { databaseId: string; row
   };
 
   return (
-    <div className="mt-4 border-b border-border pb-3">
+    <div className="mt-4 border-b border-border pb-3" data-db-readonly={editable ? undefined : ''}>
       {data.properties.map((property) => {
         const Icon = PROPERTY_ICON[property.type];
         return (
           <div key={property.id} className="flex min-h-8 items-start gap-2">
             <button
               onClick={(e) => setMenu({ property, anchor: e.currentTarget.getBoundingClientRect() })}
-              className="flex h-8 w-[160px] shrink-0 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-hover"
+              className="db-edit-click flex h-8 w-[160px] shrink-0 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-hover"
             >
               <Icon size={14} className="shrink-0" />
               <span className="truncate">{property.name}</span>
@@ -53,7 +55,7 @@ export function PropertiesPanel({ databaseId, rowId }: { databaseId: string; row
       })}
       <button
         onClick={(e) => setAddAnchor(e.currentTarget.getBoundingClientRect())}
-        className="mt-1 flex h-8 items-center gap-2 rounded-md px-2 text-sm text-faint hover:bg-hover hover:text-muted"
+        className="db-edit mt-1 flex h-8 items-center gap-2 rounded-md px-2 text-sm text-faint hover:bg-hover hover:text-muted"
       >
         <Plus size={14} /> Property hinzufügen
       </button>

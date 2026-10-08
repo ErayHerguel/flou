@@ -1,5 +1,12 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { chooseFile, uploadFile, uploadImage } from '../features/collab/guest/uploads';
+import { GUEST } from './mode';
+
+/*
+ * Bilder und Anhänge. In der App liegen sie im Asset-Ordner (asset:-Protokoll, kein Netzwerk);
+ * als Gast kommen sie vom Gastgeber und werden dorthin hochgeladen.
+ */
 
 export interface AppPaths {
   dataDir: string;
@@ -9,9 +16,8 @@ export interface AppPaths {
 
 let paths: AppPaths | null = null;
 
-export async function initPaths(): Promise<AppPaths> {
+export async function initPaths(): Promise<void> {
   paths = await invoke<AppPaths>('app_paths');
-  return paths;
 }
 
 function appPaths(): AppPaths {
@@ -21,6 +27,7 @@ function appPaths(): AppPaths {
 
 /** URL eines gespeicherten Bildes über das lokale asset:-Protokoll (kein Netzwerk). */
 export function assetUrl(name: string): string {
+  if (GUEST) return `/files/${encodeURIComponent(name)}`;
   return convertFileSrc(`${appPaths().assetsDir}/${name}`);
 }
 
@@ -31,6 +38,7 @@ export function importImageFile(path: string): Promise<string> {
 }
 
 export async function importImageBlob(file: Blob, name: string): Promise<string> {
+  if (GUEST) return uploadImage(file, name);
   const ext = name.includes('.') ? name.split('.').pop()! : (file.type.split('/')[1] ?? 'png');
   const bytes = new Uint8Array(await file.arrayBuffer());
   return invoke<string>('asset_import_bytes', bytes, { headers: { 'x-ext': ext.replace('+xml', '') } });
@@ -38,6 +46,10 @@ export async function importImageBlob(file: Blob, name: string): Promise<string>
 
 /** Öffnet den Dateidialog und importiert ein Bild. Liefert null bei Abbruch. */
 export async function pickImage(): Promise<string | null> {
+  if (GUEST) {
+    const file = await chooseFile('image/*');
+    return file ? uploadImage(file, file.name) : null;
+  }
   const selected = await open({
     multiple: false,
     directory: false,
@@ -47,7 +59,11 @@ export async function pickImage(): Promise<string | null> {
   return importImageFile(selected);
 }
 
-export function openExternal(url: string): Promise<void> {
+export async function openExternal(url: string): Promise<void> {
+  if (GUEST) {
+    if (/^(https?:|mailto:)/i.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
   return invoke('open_external', { url });
 }
 
@@ -62,18 +78,30 @@ export function importFile(path: string): Promise<StoredFile> {
 }
 
 export async function importFileBlob(file: Blob, name: string): Promise<StoredFile> {
+  if (GUEST) return uploadFile(file, name);
   const bytes = new Uint8Array(await file.arrayBuffer());
   return invoke<StoredFile>('file_import_bytes', bytes, { headers: { 'x-name': encodeURIComponent(name) } });
 }
 
-/** Dateidialog für Anhänge. Liefert Pfad und Namen oder null. */
-export async function pickFile(): Promise<{ path: string; name: string } | null> {
+/** Dateidialog für Anhänge; die gewählte Datei wird gespeichert. Liefert null bei Abbruch. */
+export async function pickAndStoreFile(): Promise<(StoredFile & { name: string }) | null> {
+  if (GUEST) {
+    const file = await chooseFile();
+    return file ? { ...(await uploadFile(file, file.name)), name: file.name } : null;
+  }
   const selected = await open({ multiple: false, directory: false });
   if (typeof selected !== 'string') return null;
-  return { path: selected, name: selected.split(/[\\/]/).pop() ?? selected };
+  return { ...(await importFile(selected)), name: selected.split(/[\\/]/).pop() ?? selected };
 }
 
-/** Öffnet einen Anhang mit dem Standardprogramm von macOS. */
-export function openAsset(name: string): Promise<void> {
+/** Öffnet einen Anhang mit dem Standardprogramm des Systems; als Gast wird er heruntergeladen. */
+export async function openAsset(name: string, fileName?: string): Promise<void> {
+  if (GUEST) {
+    const link = document.createElement('a');
+    link.href = assetUrl(name);
+    link.download = fileName ?? name;
+    link.click();
+    return;
+  }
   return invoke('open_asset', { name });
 }

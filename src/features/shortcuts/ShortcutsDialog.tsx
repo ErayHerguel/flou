@@ -1,6 +1,6 @@
 import { Modal } from '../../components/Modal';
 import { useUI } from '../../store/ui';
-import { actions } from '../actions';
+import { availableActions as actions } from '../actions';
 import { formatCombo } from './keys';
 
 /** Kürzel, die der Editor selbst verarbeitet (TipTap-Standards und eigene Erweiterungen). */

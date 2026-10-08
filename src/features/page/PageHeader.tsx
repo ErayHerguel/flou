@@ -5,10 +5,13 @@ import type { PageMeta } from '../../db/pages';
 import { getActiveEditor } from '../../editor/active';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
+import { cx } from '../../lib/cx';
+import { useCanEdit } from '../collab/sources';
 import { chooseCover } from './Cover';
 import { EmojiPicker } from './EmojiPicker';
 
 export function PageHeader({ page }: { page: PageMeta }) {
+  const editable = useCanEdit(page.id);
   const [iconPicker, setIconPicker] = useState<Anchor | null>(null);
   const closePicker = useCallback(() => setIconPicker(null), []);
   const update = usePages((s) => s.update);
@@ -22,14 +25,20 @@ export function PageHeader({ page }: { page: PageMeta }) {
     <div className={page.cover ? 'group/header pt-6' : 'group/header pt-16'}>
       {page.icon && (
         <button
+          disabled={!editable}
           onClick={(e) => setIconPicker(e.currentTarget.getBoundingClientRect())}
-          className="-ml-1 mb-2 flex h-[72px] w-[72px] items-center justify-center rounded-lg text-[56px] leading-none hover:bg-hover"
+          className="-ml-1 mb-2 flex h-[72px] w-[72px] items-center justify-center rounded-lg text-[56px] leading-none enabled:hover:bg-hover"
           aria-label="Icon ändern"
         >
           {page.icon}
         </button>
       )}
-      <div className="flex h-7 items-center gap-1 opacity-0 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100">
+      <div
+        className={cx(
+          'flex h-7 items-center gap-1 opacity-0 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100',
+          !editable && 'invisible',
+        )}
+      >
         {!page.icon && (
           <button
             onClick={(e) => setIconPicker(e.currentTarget.getBoundingClientRect())}
@@ -47,7 +56,7 @@ export function PageHeader({ page }: { page: PageMeta }) {
           </button>
         )}
       </div>
-      <TitleInput page={page} />
+      <TitleInput page={page} editable={editable} />
       {iconPicker && (
         <Popover anchor={iconPicker} onClose={closePicker}>
           <EmojiPicker onPick={pickIcon} onRemove={page.icon ? () => pickIcon(null) : undefined} />
@@ -59,6 +68,7 @@ export function PageHeader({ page }: { page: PageMeta }) {
 
 /** Kompakter Kopf über einem Board: Icon und Titel in einer Zeile. */
 export function BoardHeader({ page }: { page: PageMeta }) {
+  const editable = useCanEdit(page.id);
   const [iconPicker, setIconPicker] = useState<Anchor | null>(null);
   const closePicker = useCallback(() => setIconPicker(null), []);
   const update = usePages((s) => s.update);
@@ -70,14 +80,16 @@ export function BoardHeader({ page }: { page: PageMeta }) {
   return (
     <div className="flex items-center gap-2 px-6 py-2">
       <button
+        disabled={!editable}
         onClick={(e) => setIconPicker(e.currentTarget.getBoundingClientRect())}
-        className="flex h-8 w-8 items-center justify-center rounded-md text-xl hover:bg-hover"
+        className="flex h-8 w-8 items-center justify-center rounded-md text-xl enabled:hover:bg-hover"
         aria-label="Icon ändern"
       >
         {page.icon ?? <Smile size={16} className="text-faint" />}
       </button>
       <input
         ref={ref}
+        readOnly={!editable}
         value={page.title}
         placeholder="Ohne Titel"
         onChange={(e) => update(page.id, { title: e.target.value })}
@@ -98,16 +110,28 @@ export function BoardHeader({ page }: { page: PageMeta }) {
   );
 }
 
-function TitleInput({ page }: { page: PageMeta }) {
+function TitleInput({ page, editable }: { page: PageMeta; editable: boolean }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const update = usePages((s) => s.update);
   const pendingFocus = useUI((s) => s.pendingFocus);
 
+  // Höhe an den Inhalt anpassen: bei Textänderung und wenn sich die Breite ändert (Fenster, Seitenleiste).
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.height = '0px';
-    el.style.height = `${el.scrollHeight}px`;
+    const fit = () => {
+      el.style.height = '0px';
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      fit();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [page.title, page.fullWidth]);
 
   useEffect(() => {
@@ -124,6 +148,7 @@ function TitleInput({ page }: { page: PageMeta }) {
       ref={ref}
       rows={1}
       value={page.title}
+      readOnly={!editable}
       placeholder="Ohne Titel"
       spellCheck={false}
       onChange={(e) => update(page.id, { title: e.target.value.replace(/\n/g, ' ') })}

@@ -1,13 +1,14 @@
 # flou
 
-Lokale Notizen und Datenbanken für macOS (Apple Silicon) und Windows: schnell, tastaturfreundlich, vollständig offline.
-Kein Konto, kein Server, keine Telemetrie. Alle Daten liegen auf deinem Mac.
+Lokale Notizen und Datenbanken für macOS (Apple Silicon) und Windows: schnell, tastaturfreundlich, offline.
+Kein Konto, kein Cloud-Server, keine Telemetrie. Alle Daten liegen auf deinem Computer – auch wenn du mit anderen zusammenarbeitest.
 
 ## Funktionen
 
-- **Seiten** in beliebiger Verschachtelung, Drag-and-drop in der Seitenleiste, Papierkorb mit Wiederherstellen
-- **Block-Editor**: Absatz, Überschriften, Listen, To-dos, Toggle, Zitat, Callout, Code mit Syntax-Highlighting, Trenner, Tabellen, 2/3 Spalten, Bilder mit Unterschrift, Dateianhänge (Audio/Video spielen direkt), Unterseiten, eingebettete Datenbanken
+- **Seiten** in beliebiger Verschachtelung, Drag-and-drop in der Seitenleiste (Seiten lassen sich auch in Datenbanken ziehen), Papierkorb mit Wiederherstellen
+- **Block-Editor**: jeder Block per Greifer verschiebbar (auch in Spalten, Toggles und Callouts); Absatz, Überschriften, Listen, To-dos, Toggle, Zitat, Callout, Code mit Syntax-Highlighting, Trenner, Tabellen, 2/3 Spalten, Bilder mit Unterschrift, Dateianhänge (Audio/Video spielen direkt), Unterseiten, eingebettete Datenbanken
 - **Boards** wie in FigJam (`⌥⌘B` oder `/board`): unendliche Fläche mit Sticky Notes, Formen, Pfeilen, Freihand, Bildern; eingebettet in Seiten mit Vorschau; Export als PNG/SVG und `.excalidraw` (basiert auf Excalidraw, MIT)
+- **Zusammenarbeiten** (Seitenleiste „Teilen“): Personen per Link zu einzelnen Seiten, Boards oder Datenbanken einladen, mit Lese- oder Schreibrecht. Gemeinsames Bearbeiten live mit Cursorn, im Browser oder in der eigenen flou-App. Dein Computer ist der Server (siehe unten)
 - **Kommentare** an Textstellen (`⇧⌘M`) und **Versionsverlauf** je Seite (eine Version je 10 Minuten, die letzten 50)
 - **Slash-Menü** (`/`) mit Fuzzy-Suche, **Markdown-Shortcuts** beim Tippen, schwebende Formatierungsleiste
 - **Seitenlinks** mit `[[` und Backlinks am Seitenende
@@ -112,8 +113,9 @@ git commit -am "Version 1.0.1" && git tag v1.0.1 && git push && git push --tags
 ~/Library/Application Support/app.flou.desktop/
 ├── flou.db          SQLite-Datenbank (WAL-Modus): Seiten, Inhalte, Datenbanken, Einstellungen
 ├── flou.db-wal/-shm Schreibprotokoll von SQLite, gehört zur Datenbank
-├── assets/          Bilder, benannt nach ihrem Inhalts-Hash
-└── backups/         tägliche Backups, je ein Ordner pro Tag
+├── assets/          Bilder und Anhänge, benannt nach ihrem Inhalts-Hash
+├── backups/         tägliche Backups, je ein Ordner pro Tag
+└── bin/             cloudflared, sobald du zum ersten Mal teilst
 ```
 
 In der App: Menü „Hilfe → Datenordner im Finder zeigen“.
@@ -183,14 +185,29 @@ src/                 React-Frontend
   db/                Datenzugriff: Treiber, Repositories, Speicher-Warteschlange, Suche
   store/             Zustand-Stores (Seiten, Datenbanken, Oberfläche)
   editor/            TipTap-Editor, eigene Blöcke, Slash-Menü, Greifer
-  features/          Seitenleiste, Seitenansicht, Datenbanken, Palette, Export/Import
+  features/          Seitenleiste, Seitenansicht, Datenbanken, Boards, Palette, Export/Import
+  features/collab/   Zusammenarbeit: Rechte, Protokoll, Gastgeber-Hub (host/), Gast-Oberfläche (guest/)
   lib/               Baumlogik, Fuzzy-Suche, Markdown
 src-tauri/           Rust-Shell
   migrations/        SQL-Migrationen
-  src/               Transaktionen, Bilder, Backups, Export/Import
+  src/               Transaktionen, Bilder, Backups, Export/Import, Freigabe-Server und Tunnel (share/)
 scripts/             Icon, Installation, Smoke-Test, Lizenzprüfung
 brand/               Logo (SVG)
 ```
+
+## Zusammenarbeiten
+
+1. Seitenleiste unten „Teilen“ (oder `⌘K` → „Teilen und Zusammenarbeiten“) → **Teilen starten**.
+2. Person einladen (Name eingeben). Auf einer Seite oben rechts **Teilen** wählen und der Person „Kann lesen“ oder „Kann bearbeiten“ geben. Unterseiten und Datenbank-Einträge erben das Recht; „Kein Zugriff“ nimmt einen Teilbaum wieder aus.
+3. **Link kopieren** und schicken. Die Person öffnet ihn im Browser oder in flou über `⌘K` → „Geteilten Workspace öffnen“.
+
+So funktioniert es:
+
+- flou startet einen kleinen Server nur auf diesem Computer (127.0.0.1) und macht ihn über einen **Cloudflare Quick Tunnel** erreichbar (`https://….trycloudflare.com`): kostenlos, ohne Konto, verschlüsselt. Das Programm dafür (`cloudflared`, Apache-2.0) lädt flou beim ersten Teilen einmalig von GitHub, prüft die SHA-256-Prüfsumme und legt es im Datenordner unter `bin/` ab.
+- Alle Daten bleiben in deiner Datenbank. Gäste sehen nur, was freigegeben ist; jede Änderung wird bei dir gegen die Rechte geprüft.
+- Seiten werden mit Yjs (CRDT) gemeinsam bearbeitet, Boards Element für Element abgeglichen, Datenbanken über deine App geändert. Gespeichert wird wie gewohnt in deiner Datenbank, inklusive Versionsverlauf.
+- Die Adresse ist bei jedem Start eine neue (Eigenschaft der Quick Tunnels). Solange flou geöffnet ist und das Teilen läuft, können Eingeladene mitarbeiten. Neue Links bekommst du im Teilen-Dialog.
+- Einladungslinks enthalten einen geheimen Schlüssel (256 Bit) hinter `#join=`; er wird nicht an Server übertragen, nur gegen ein Sitzungs-Cookie getauscht. „Entfernen“ macht den Link ungültig und trennt die Person sofort.
 
 ## Formeln
 
@@ -199,11 +216,12 @@ Formel-Properties rechnen pro Eintrag, z. B. `prop("Preis") * prop("Menge")` ode
 ## Bewusst nicht enthalten
 
 - Notarisierung durch Apple (braucht ein kostenpflichtiges Entwicklerkonto)
-- Mehrere Fenster gleichzeitig (gleichzeitiges Bearbeiten derselben Seite könnte Daten überschreiben)
+- Mehrere Fenster für denselben eigenen Workspace (geteilte Workspaces anderer öffnen sich dagegen in eigenen Fenstern)
+- Eine feste Adresse fürs Teilen (bräuchte ein Konto bei einem Tunnel-Anbieter oder eine eigene Domain)
 
 ## Datenschutz und Netzwerk
 
-flou macht zur Laufzeit keine Netzwerkanfragen außer der Update-Prüfung: Beim Start fragt die App einmal `latest.json` des neuesten GitHub-Releases ab (nur Versionsnummer, keine Nutzerdaten). Abschaltbar über die Befehlspalette („Automatische Update-Suche an/aus“). Die Content-Security-Policy erlaubt nur lokale Ressourcen. Externe Bilder in eingefügtem HTML werden nicht übernommen, Schriften sind eingebunden. Links öffnen sich nur auf ausdrücklichen ⌘-Klick im Standardbrowser.
+flou macht zur Laufzeit keine Netzwerkanfragen außer der Update-Prüfung: Beim Start fragt die App einmal `latest.json` des neuesten GitHub-Releases ab (nur Versionsnummer, keine Nutzerdaten). Abschaltbar über die Befehlspalette („Automatische Update-Suche an/aus“). Nur wenn du ausdrücklich „Teilen starten“ wählst, lädt flou einmalig cloudflared von GitHub und baut den Tunnel zu Cloudflare auf; beim Beenden des Teilens oder der App wird er geschlossen. Die Content-Security-Policy erlaubt nur lokale Ressourcen. Externe Bilder in eingefügtem HTML werden nicht übernommen, Schriften sind eingebunden. Links öffnen sich nur auf ausdrücklichen ⌘-Klick im Standardbrowser.
 
 ## Lizenzen der Abhängigkeiten
 

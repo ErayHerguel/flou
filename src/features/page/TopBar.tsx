@@ -5,7 +5,12 @@ import { MenuList } from '../../components/MenuList';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { Popover, type Anchor } from '../../components/Popover';
 import { useSaveStatus } from '../../db/saveQueue';
+import { GUEST } from '../../lib/mode';
 import { IS_MAC } from '../../lib/platform';
+import { ConnectionIndicator } from '../collab/guest/GuestIdentity';
+import { PageShareButton } from '../collab/host/PageShare';
+import { PagePresence } from '../collab/presence';
+import { useCanEdit } from '../collab/sources';
 import { ancestorIds } from '../../lib/tree';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
@@ -26,12 +31,13 @@ export function TopBar({ pageId }: { pageId: string | null }) {
   const favorite = useUI((s) => (pageId ? s.favorites.includes(pageId) : false));
   const isHome = useUI((s) => pageId !== null && s.homeId === pageId);
   const closeMenu = useCallback(() => setMenu(null), []);
+  const editable = useCanEdit(pageId);
 
   return (
     <header
       data-tauri-drag-region
       className="flex h-11 shrink-0 items-center gap-1 pr-3 print:hidden"
-      style={{ paddingLeft: sidebarOpen || !IS_MAC ? 12 : TRAFFIC_LIGHT_INSET }}
+      style={{ paddingLeft: sidebarOpen || !IS_MAC || GUEST ? 12 : TRAFFIC_LIGHT_INSET }}
     >
       {!sidebarOpen && (
         <IconButton
@@ -59,7 +65,9 @@ export function TopBar({ pageId }: { pageId: string | null }) {
       </nav>
 
       <div data-tauri-drag-region className="h-full flex-1" />
-      <SaveIndicator />
+      {GUEST ? <ConnectionIndicator /> : <SaveIndicator />}
+      <PagePresence />
+      {page && !GUEST && <PageShareButton pageId={page.id} />}
       {page && (
         <button
           aria-label={favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
@@ -78,32 +86,49 @@ export function TopBar({ pageId }: { pageId: string | null }) {
           <MenuList
             onDone={closeMenu}
             items={[
-              {
-                label: page.fullWidth ? 'Normale Breite' : 'Volle Breite',
-                icon: MoveHorizontal,
-                hint: formatCombo(actionById('page.fullWidth').keys!),
-                onSelect: () => void actionById('page.fullWidth').run(),
-              },
+              ...(editable
+                ? [
+                    {
+                      label: page.fullWidth ? 'Normale Breite' : 'Volle Breite',
+                      icon: MoveHorizontal,
+                      hint: formatCombo(actionById('page.fullWidth').keys!),
+                      onSelect: () => void actionById('page.fullWidth').run(),
+                    },
+                  ]
+                : []),
               { label: 'Drucken / Als PDF sichern …', icon: Printer, hint: formatCombo('Mod+P'), onSelect: () => void actionById('share.print').run() },
-              { label: 'Als Markdown kopieren', icon: Copy, hint: formatCombo('Mod+Shift+C'), onSelect: () => void actionById('share.copyMarkdown').run() },
+              ...(GUEST
+                ? []
+                : [
+                    {
+                      label: 'Als Markdown kopieren',
+                      icon: Copy,
+                      hint: formatCombo('Mod+Shift+C'),
+                      onSelect: () => void actionById('share.copyMarkdown').run(),
+                    },
+                  ]),
               {
                 label: isHome ? 'Startseite entfernen' : 'Als Startseite festlegen',
                 icon: House,
                 onSelect: () => useUI.getState().setHome(isHome ? null : page.id),
               },
+              ...(page.type === 'page' && !GUEST
+                ? [{ label: 'Versionsverlauf …', icon: History, onSelect: () => useUI.getState().setOverlay('versions') }]
+                : []),
               ...(page.type === 'page'
+                ? [{ label: 'Kommentare', icon: MessageSquare, onSelect: () => useUI.getState().setOverlay('comments') }]
+                : []),
+              ...(editable
                 ? [
-                    { label: 'Versionsverlauf …', icon: History, onSelect: () => useUI.getState().setOverlay('versions') },
-                    { label: 'Kommentare', icon: MessageSquare, onSelect: () => useUI.getState().setOverlay('comments') },
+                    {
+                      label: 'In den Papierkorb',
+                      icon: Trash2,
+                      danger: true,
+                      hint: formatCombo(actionById('page.trash').keys!),
+                      onSelect: () => void usePages.getState().trash(page.id),
+                    },
                   ]
                 : []),
-              {
-                label: 'In den Papierkorb',
-                icon: Trash2,
-                danger: true,
-                hint: formatCombo(actionById('page.trash').keys!),
-                onSelect: () => void usePages.getState().trash(page.id),
-              },
             ]}
           />
         </Popover>

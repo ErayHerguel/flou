@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { actions } from '../actions';
+import { availableActions as actions } from '../actions';
 import { matches } from './keys';
 
 /**

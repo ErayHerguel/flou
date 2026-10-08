@@ -29,7 +29,7 @@ async function exportPages(rootIds: string[], targetDir: string): Promise<void> 
   const boards: Record<string, ExcalidrawFile> = {};
   for (const id of ids.filter((pid) => pages[pid].type === 'board')) {
     const scene = await loadBoard(id);
-    const files = await loadFiles(scene);
+    const files = await loadFiles(scene.files);
     boards[id] = {
       type: 'excalidraw',
       version: 2,

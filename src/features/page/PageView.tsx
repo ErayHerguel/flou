@@ -4,6 +4,7 @@ import { BoardHeader } from './PageHeader';
 import { DatabaseView } from '../database/DatabaseView';
 import { PropertiesPanel } from '../database/PropertiesPanel';
 import { cx } from '../../lib/cx';
+import { GUEST } from '../../lib/mode';
 import { usePages } from '../../store/pages';
 import { Backlinks } from './Backlinks';
 import { Cover } from './Cover';
@@ -45,7 +46,7 @@ export function PageView({ id }: { id: string }) {
             </div>
           </>
         )}
-        <Backlinks pageId={id} />
+        {!GUEST && <Backlinks pageId={id} />}
       </div>
     </div>
   );

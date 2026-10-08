@@ -21,6 +21,7 @@ import { BoundCell } from './cells';
 import { OptionTag } from './OptionTag';
 import { groupRows, type Row } from './query';
 import { RowTitle } from './RowTitle';
+import { useCanEdit } from '../collab/sources';
 
 interface BoardViewProps {
   databaseId: string;
@@ -38,6 +39,7 @@ const columnId = (optionId: string | null) => `column:${optionId ?? NONE}`;
 export function BoardView({ databaseId, view, data, rows, editingId, onEditingDone, onCreate }: BoardViewProps) {
   const groupBy = data.properties.find((p) => p.id === view.config.groupBy && p.type === 'select');
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const editable = useCanEdit(databaseId);
   const [dragging, setDragging] = useState<string | null>(null);
 
   if (!groupBy) {
@@ -76,7 +78,7 @@ export function BoardView({ databaseId, view, data, rows, editingId, onEditingDo
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={editable ? sensors : []}
       collisionDetection={pointerWithin}
       onDragStart={({ active }) => setDragging(String(active.id))}
       onDragCancel={() => setDragging(null)}
@@ -103,7 +105,7 @@ export function BoardView({ databaseId, view, data, rows, editingId, onEditingDo
             </div>
             <button
               onClick={() => onCreate({ [groupBy.id]: group.option?.id ?? null })}
-              className="mt-1 flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-sm text-faint hover:bg-hover hover:text-muted"
+              className="db-edit mt-1 flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-sm text-faint hover:bg-hover hover:text-muted"
             >
               <Plus size={14} /> Neu
             </button>

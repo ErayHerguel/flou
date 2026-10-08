@@ -2,6 +2,7 @@ mod assets;
 mod backup;
 mod db;
 mod paths;
+mod share;
 mod transfer;
 
 use std::time::{Duration, Instant};
@@ -39,6 +40,12 @@ fn migrations() -> Vec<Migration> {
             version: 5,
             description: "boards",
             sql: include_str!("../migrations/005_boards.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "share",
+            sql: include_str!("../migrations/006_share.sql"),
             kind: MigrationKind::Up,
         },
     ]
@@ -80,6 +87,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(db::Db::new())
+        .manage(share::Share::new())
         .manage(started)
         .setup(|app| {
             paths::ensure_dirs(app.handle())?;
@@ -111,11 +119,22 @@ pub fn run() {
             db::db_tx,
             paths::app_paths,
             paths::reveal_dir,
+            share::open_shared,
+            share::share_close_member,
+            share::share_send,
+            share::share_start,
+            share::share_status,
+            share::share_stop,
             transfer::export_write,
             transfer::import_read,
             transfer::reveal_path,
             transfer::save_file,
         ])
-        .run(tauri::generate_context!())
-        .expect("Fehler beim Starten von flou");
+        .build(tauri::generate_context!())
+        .expect("Fehler beim Starten von flou")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                share::shutdown(app);
+            }
+        });
 }

@@ -20,7 +20,7 @@ fn normalize_ext(ext: &str) -> Result<String, String> {
 }
 
 /// Speichert ein Bild inhaltsadressiert (SHA-256) im Asset-Ordner. Gleiche Bilder liegen nur einmal vor.
-fn store(app: &AppHandle, bytes: &[u8], ext: &str) -> Result<String, String> {
+pub(crate) fn store(app: &AppHandle, bytes: &[u8], ext: &str) -> Result<String, String> {
     if bytes.len() > MAX_BYTES {
         return Err("Bilder dürfen höchstens 50 MB groß sein".into());
     }
@@ -85,18 +85,23 @@ const MAX_FILE_BYTES: usize = 500 * 1024 * 1024;
 
 #[derive(serde::Serialize)]
 pub struct StoredFile {
-    src: String,
-    size: usize,
+    pub(crate) src: String,
+    pub(crate) size: usize,
+}
+
+/// Anhang unter seinem Originalnamen (nur für die Endung) speichern.
+pub(crate) fn store_file(app: &AppHandle, bytes: &[u8], name: &str) -> Result<StoredFile, String> {
+    if bytes.len() > MAX_FILE_BYTES {
+        return Err("Anhänge dürfen höchstens 500 MB groß sein".into());
+    }
+    Ok(StoredFile { src: store_raw(app, bytes, &file_ext(name))?, size: bytes.len() })
 }
 
 /// Beliebige Datei als Anhang in den App-Ordner kopieren.
 #[tauri::command]
 pub fn file_import(app: AppHandle, path: String) -> Result<StoredFile, String> {
     let bytes = fs::read(&path).map_err(|e| format!("{path}: {e}"))?;
-    if bytes.len() > MAX_FILE_BYTES {
-        return Err("Anhänge dürfen höchstens 500 MB groß sein".into());
-    }
-    Ok(StoredFile { src: store_raw(&app, &bytes, &file_ext(&path))?, size: bytes.len() })
+    store_file(&app, &bytes, &path)
 }
 
 /// Anhang aus Zwischenablage oder Drag-and-drop; Dateiname im Header `x-name` (URL-kodiert).
@@ -104,10 +109,7 @@ pub fn file_import(app: AppHandle, path: String) -> Result<StoredFile, String> {
 pub fn file_import_bytes(app: AppHandle, request: Request<'_>) -> Result<StoredFile, String> {
     let name = request.headers().get("x-name").and_then(|v| v.to_str().ok()).unwrap_or("datei").to_string();
     match request.body() {
-        InvokeBody::Raw(bytes) if bytes.len() <= MAX_FILE_BYTES => {
-            Ok(StoredFile { src: store_raw(&app, bytes, &file_ext(&name))?, size: bytes.len() })
-        }
-        InvokeBody::Raw(_) => Err("Anhänge dürfen höchstens 500 MB groß sein".into()),
+        InvokeBody::Raw(bytes) => store_file(&app, bytes, &name),
         InvokeBody::Json(_) => Err("Erwartet Binärdaten".into()),
     }
 }

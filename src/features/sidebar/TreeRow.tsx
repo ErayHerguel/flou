@@ -8,6 +8,7 @@ import { cx } from '../../lib/cx';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
 import { createPageAndOpen } from '../actions';
+import { useCanEdit } from '../collab/sources';
 
 export type DropPosition = 'before' | 'after' | 'inside';
 
@@ -28,7 +29,8 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
   const [menu, setMenu] = useState<Anchor | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
 
-  const drag = useDraggable({ id });
+  const editable = useCanEdit(id);
+  const drag = useDraggable({ id, disabled: !editable });
   const dropZone = useDroppable({ id });
   const setRef = useCallback(
     (node: HTMLElement | null) => {
@@ -60,7 +62,7 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
             e.preventDefault();
             useUI.getState().open(id);
             useUI.getState().requestFocus('editor');
-          } else if (e.key === 'F2') {
+          } else if (e.key === 'F2' && editable) {
             e.preventDefault();
             setRenaming(true);
           }
@@ -69,7 +71,7 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
         aria-selected={active}
         aria-expanded={expandable ? expanded : undefined}
         onClick={() => useUI.getState().open(id)}
-        onDoubleClick={() => setRenaming(true)}
+        onDoubleClick={() => editable && setRenaming(true)}
         onContextMenu={openMenu}
         className={cx(
           'group relative flex h-7 shrink-0 items-center gap-1 rounded-md pr-1 text-sm outline-none',
@@ -122,7 +124,7 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
             >
               <MoreHorizontal size={14} />
             </button>
-            {expandable && (
+            {expandable && editable && (
               <button
                 aria-label="Unterseite hinzufügen"
                 onClick={(e) => {
@@ -143,10 +145,10 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
           <MenuList
             onDone={closeMenu}
             items={[
-              ...(expandable
+              ...(expandable && editable
                 ? [{ label: 'Unterseite hinzufügen', icon: Plus, onSelect: () => void createPageAndOpen(id) }]
                 : []),
-              { label: 'Umbenennen', icon: PenLine, onSelect: () => setRenaming(true) },
+              ...(editable ? [{ label: 'Umbenennen', icon: PenLine, onSelect: () => setRenaming(true) }] : []),
               {
                 label: useUI.getState().favorites.includes(id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
                 icon: Star,
@@ -157,12 +159,16 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
                 icon: House,
                 onSelect: () => useUI.getState().setHome(useUI.getState().homeId === id ? null : id),
               },
-              {
-                label: 'In den Papierkorb',
-                icon: Trash2,
-                danger: true,
-                onSelect: () => void usePages.getState().trash(id),
-              },
+              ...(editable
+                ? [
+                    {
+                      label: 'In den Papierkorb',
+                      icon: Trash2,
+                      danger: true,
+                      onSelect: () => void usePages.getState().trash(id),
+                    },
+                  ]
+                : []),
             ]}
           />
         </Popover>

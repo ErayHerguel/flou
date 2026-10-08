@@ -63,7 +63,7 @@ export function GalleryView({ databaseId, view, data, rows, editingId, onEditing
           </div>
         );
       })}
-      <button onClick={onCreate} className="flex min-h-[160px] items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong text-sm text-faint hover:bg-hover hover:text-muted">
+      <button onClick={onCreate} className="db-edit flex min-h-[160px] items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong text-sm text-faint hover:bg-hover hover:text-muted">
         <Plus size={14} /> Neu
       </button>
     </div>
@@ -88,7 +88,7 @@ export function ListView({ databaseId, view, data, rows, editingId, onEditingDon
           <OpenButton id={row.id} />
         </div>
       ))}
-      <button onClick={onCreate} className="flex h-8 w-full items-center gap-1.5 px-2 text-sm text-faint hover:bg-hover hover:text-muted">
+      <button onClick={onCreate} className="db-edit flex h-8 w-full items-center gap-1.5 px-2 text-sm text-faint hover:bg-hover hover:text-muted">
         <Plus size={14} /> Neu
       </button>
     </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { schedule } from '../db/saveQueue';
 import { setSetting } from '../db/settings';
+import { GUEST } from '../lib/mode';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type FocusTarget = 'title' | 'editor';
@@ -8,7 +9,7 @@ export interface FocusRequest {
   pageId: string;
   target: FocusTarget;
 }
-export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | 'versions' | 'comments' | null;
+export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | 'versions' | 'comments' | 'share' | 'join' | null;
 
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
@@ -42,7 +43,33 @@ interface UIState {
   consumeFocus(pageId: string, target: FocusTarget): boolean;
 }
 
-const persist = (key: string, value: string) => schedule(`setting:${key}`, () => [setSetting(key, value)]);
+/** Als Gast bleiben Ansichtseinstellungen im Browser (localStorage), sonst in der Datenbank. */
+const GUEST_PREFIX = 'flou.';
+const persist = (key: string, value: string) => {
+  if (!GUEST) {
+    schedule(`setting:${key}`, () => [setSetting(key, value)]);
+    return;
+  }
+  try {
+    localStorage.setItem(GUEST_PREFIX + key, value);
+  } catch {
+    // Ohne Speicher (privates Fenster) gelten die Einstellungen nur bis zum Neuladen.
+  }
+};
+
+/** Gespeicherte Ansichtseinstellungen eines Gastes. */
+export function guestSettings(): Record<string, string> {
+  const settings: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(GUEST_PREFIX)) settings[key.slice(GUEST_PREFIX.length)] = localStorage.getItem(key) ?? '';
+    }
+  } catch {
+    // siehe persist
+  }
+  return settings;
+}
 
 export const useUI = create<UIState>((set, get) => ({
   currentId: null,

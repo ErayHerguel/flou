@@ -289,3 +289,11 @@
     display: block;
   }
 }
+
+/* Datenbanken mit Lesezugriff (Gäste): keine Bedienelemente zum Ändern. */
+[data-db-readonly] .db-edit {
+  display: none;
+}
+[data-db-readonly] .db-edit-click {
+  pointer-events: none;
+}

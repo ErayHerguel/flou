@@ -14,6 +14,9 @@ import { initPaths, openExternal } from './lib/assets';
 import { IS_MAC } from './lib/platform';
 import { indexDatabaseValues } from './features/database/searchIndex';
 import { CommentsDialog } from './features/history/CommentsDialog';
+import { confirmStopSharing, useHosting } from './features/collab/host/hosting';
+import { ShareDialog } from './features/collab/host/ShareDialog';
+import { JoinDialog } from './features/collab/JoinDialog';
 import { VersionsDialog } from './features/history/VersionsDialog';
 import { runFirstStart } from './features/onboarding/firstRun';
 import { CommandPalette } from './features/palette/CommandPalette';
@@ -48,6 +51,7 @@ function bootstrap(): Promise<void> {
     useUI.getState().hydrate(settings);
     hydrateUpdates(settings);
     await usePages.getState().load();
+    await useHosting.getState().hydrate(settings);
     const welcomeId = await runFirstStart(settings);
     if (welcomeId) useUI.getState().open(welcomeId);
     forgetPages(isLive, firstRoot());
@@ -100,7 +104,7 @@ export function App() {
 
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (!(await ensureSaved())) event.preventDefault();
+      if (!(await confirmStopSharing()) || !(await ensureSaved())) event.preventDefault();
     });
     return () => void unlisten.then((off) => off());
   }, []);
@@ -129,6 +133,8 @@ export function App() {
       {overlay === 'shortcuts' && <ShortcutsDialog />}
       {overlay === 'versions' && <VersionsDialog />}
       {overlay === 'comments' && <CommentsDialog />}
+      {overlay === 'share' && <ShareDialog />}
+      {overlay === 'join' && <JoinDialog />}
       <ConfirmDialog />
       <Toasts />
       <UpdateBanner />

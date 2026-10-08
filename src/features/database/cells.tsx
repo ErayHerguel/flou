@@ -14,6 +14,7 @@ import { reportError } from '../../store/toast';
 import { OptionTag } from './OptionTag';
 import { computeRows } from './query';
 import { SelectPopover } from './SelectPopover';
+import { useCanEdit } from '../collab/sources';
 
 const dateFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
 
@@ -308,7 +309,8 @@ export function BoundCell({
 
 function StoredCell({ databaseId, rowId, property, variant }: { databaseId: string; rowId: string; property: Property; variant: CellProps['variant'] }) {
   const value = useDatabases((s) => s.data[databaseId]?.values[rowId]?.[property.id] ?? null);
-  return (
+  const editable = useCanEdit(databaseId);
+  const cell = (
     <Cell
       property={property}
       value={value}
@@ -316,4 +318,6 @@ function StoredCell({ databaseId, rowId, property, variant }: { databaseId: stri
       onChange={(next) => useDatabases.getState().setValue(databaseId, rowId, property.id, next)}
     />
   );
+  // Nur lesen: Wert anzeigen, aber keine Bearbeitung öffnen.
+  return editable ? cell : <div className="pointer-events-none contents">{cell}</div>;
 }

@@ -8,6 +8,7 @@ import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMark
 import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
 import { quitApp } from './lifecycle';
+import { GUEST } from '../lib/mode';
 
 export type MenuSection = 'app' | 'file' | 'edit' | 'view' | 'go' | 'help';
 
@@ -326,6 +327,20 @@ export const actions: AppAction[] = [
     run: () => useUI.getState().setOverlay('shortcuts'),
   },
   {
+    id: 'share.open',
+    label: 'Teilen und Zusammenarbeiten …',
+    group: 'Allgemein',
+    menu: 'file',
+    run: () => useUI.getState().setOverlay('share'),
+  },
+  {
+    id: 'share.join',
+    label: 'Geteilten Workspace öffnen …',
+    group: 'Allgemein',
+    menu: 'file',
+    run: () => useUI.getState().setOverlay('join'),
+  },
+  {
     id: 'backup.now',
     label: 'Backup jetzt erstellen',
     group: 'Allgemein',
@@ -381,6 +396,33 @@ function focusTree() {
     row?.focus();
   });
 }
+
+/** Was Gäste im geteilten Workspace ausführen können (alles andere betrifft den Computer des Gastgebers). */
+const GUEST_ACTIONS = new Set([
+  'palette.open',
+  'search.open',
+  'page.newSub',
+  'page.rename',
+  'page.fullWidth',
+  'page.trash',
+  'share.print',
+  'page.favorite',
+  'page.setHome',
+  'page.comments',
+  'edit.undo',
+  'edit.redo',
+  'view.sidebar',
+  'theme.light',
+  'theme.dark',
+  'theme.system',
+  'nav.home',
+  'nav.focusTree',
+  'nav.back',
+  'nav.forward',
+  'shortcuts.open',
+]);
+
+export const availableActions: AppAction[] = GUEST ? actions.filter((a) => GUEST_ACTIONS.has(a.id)) : actions;
 
 export function actionById(id: string): AppAction {
   const action = actions.find((a) => a.id === id);

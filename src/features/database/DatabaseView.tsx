@@ -14,12 +14,14 @@ import { applyView, computeRows } from './query';
 import { SortMenu } from './SortMenu';
 import { TableView } from './TableView';
 import { useRows } from './useRows';
+import { useCanEdit } from '../collab/sources';
 import { ViewTabs } from './ViewTabs';
 
 type Panel = 'filter' | 'sort' | 'group' | 'date';
 
 export function DatabaseView({ databaseId }: { databaseId: string }) {
   const all = useDatabases((s) => s.data);
+  const editable = useCanEdit(databaseId);
   const data = all[databaseId];
   const pages = usePages((s) => s.pages);
   const [viewId, setViewId] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export function DatabaseView({ databaseId }: { databaseId: string }) {
   );
 
   return (
-    <div className="mt-4">
+    <div className="mt-4" data-db-readonly={editable ? undefined : ''}>
       <div className="mb-2 flex items-center gap-2 border-b border-border">
         <ViewTabs views={data.views} activeId={view.id} onSelect={setViewId} />
         <div className="flex-1" />
@@ -91,7 +93,7 @@ export function DatabaseView({ databaseId }: { databaseId: string }) {
         {toolbarButton('sort', 'Sortierung', <ArrowUpDown size={14} />, view.config.sorts.length)}
         <button
           onClick={() => void create()}
-          className="mb-1 flex h-7 items-center gap-1 rounded-md bg-accent px-2.5 text-sm font-medium text-accent-fg"
+          className="db-edit mb-1 flex h-7 items-center gap-1 rounded-md bg-accent px-2.5 text-sm font-medium text-accent-fg"
         >
           <Plus size={14} /> Neu
         </button>

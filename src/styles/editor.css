@@ -702,3 +702,29 @@ div.block-handle-button {
 .flou-editor .board-embed.ProseMirror-selectednode {
   outline: 2px solid var(--c-accent-soft);
 }
+
+/* ---------- Zusammenarbeit: Cursor der anderen ---------- */
+.flou-editor .collaboration-carets__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1.5px solid;
+  border-right: 1.5px solid;
+  border-color: inherit;
+  word-break: normal;
+  pointer-events: none;
+}
+.flou-editor .collaboration-carets__label {
+  position: absolute;
+  top: -1.35em;
+  left: -1.5px;
+  padding: 1px 5px;
+  border-radius: 4px 4px 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  color: #fff;
+  user-select: none;
+  pointer-events: none;
+}

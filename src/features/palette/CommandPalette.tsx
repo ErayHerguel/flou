@@ -4,11 +4,13 @@ import { Modal } from '../../components/Modal';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
 import { MARK_END, MARK_START, searchPages, type SearchHit } from '../../db/search';
 import { cx } from '../../lib/cx';
+import { GUEST } from '../../lib/mode';
+import { connection } from '../collab/guest/connection';
 import { fuzzyFilter } from '../../lib/fuzzy';
 import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
 import { useUI } from '../../store/ui';
-import { actions, type AppAction } from '../actions';
+import { availableActions as actions, type AppAction } from '../actions';
 import { formatCombo } from '../shortcuts/keys';
 
 type Item =
@@ -65,7 +67,7 @@ export function CommandPalette({ mode }: { mode: 'palette' | 'search' }) {
     }
     let alive = true;
     const started = performance.now();
-    searchPages(q, 20)
+    (GUEST ? connection.request<SearchHit[]>({ op: 'search', query: q }) : searchPages(q, 20))
       .then((result) => {
         if (!alive) return;
         setHits(result);
@@ -93,11 +95,12 @@ export function CommandPalette({ mode }: { mode: 'palette' | 'search' }) {
       .filter((h) => !titleIds.has(h.id) && pages[h.id])
       .slice(0, 10)
       .map((h) => ({ kind: 'page', id: h.id, snippet: h.snippet, section: 'Im Inhalt gefunden' }));
-    const create: Item = { kind: 'create', title: q, section: 'Neu' };
+    // Gäste legen keine Seiten auf oberster Ebene an.
+    const create: Item[] = GUEST ? [] : [{ kind: 'create', title: q, section: 'Neu' }];
     const actionMatches = actionItems(fuzzyFilter(paletteActions, q, (a) => [a.label]).slice(0, 4));
     return mode === 'search'
-      ? [...textItems, ...titleItems, create]
-      : [...titleItems, ...textItems, ...actionMatches, create];
+      ? [...textItems, ...titleItems, ...create]
+      : [...titleItems, ...textItems, ...actionMatches, ...create];
   }, [pages, hits, q, actionMode, mode]);
 
   useEffect(() => setActive(0), [items.length, q]);
