@@ -32,13 +32,19 @@ const DOWNLOAD: Option<Download> = Some(Download {
     sha256: "587c2cfb1c230fe36c7fa7727da78be459dae028cabe8c001291999350f07095",
 });
 
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+const DOWNLOAD: Option<Download> = Some(Download {
+    file: "cloudflared-darwin-amd64.tgz",
+    sha256: "d1155d0837487f261183b15c1eab6c4ebcad9dc49b94675f1524c3564cea3977",
+});
+
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
 const DOWNLOAD: Option<Download> = Some(Download {
     file: "cloudflared-windows-amd64.exe",
     sha256: "f096265ec2fcbe9bb6e2d64268db167ced3fcbb83d894bdb9e2fcdb26f2ea7e2",
 });
 
-#[cfg(not(any(all(target_os = "macos", target_arch = "aarch64"), all(target_os = "windows", target_arch = "x86_64"))))]
+#[cfg(not(any(target_os = "macos", all(target_os = "windows", target_arch = "x86_64"))))]
 const DOWNLOAD: Option<Download> = None;
 
 /// Bis die öffentliche Adresse steht, höchstens so lange warten.

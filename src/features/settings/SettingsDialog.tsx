@@ -288,6 +288,14 @@ function Data() {
           <Button onClick={run('import.folder')}>Ordner importieren …</Button>
         </div>
       </section>
+      <section>
+        <Heading>Umzug aus Notion</Heading>
+        <p className="mb-2 text-sm text-muted">
+          In Notion: Einstellungen → Workspace exportieren → „Markdown &amp; CSV“. Die ZIP-Datei per Doppelklick entpacken und den Ordner
+          hier wählen. Seiten, Unterseiten, Bilder und Datenbanken samt Einträgen kommen mit.
+        </p>
+        <Button onClick={run('import.notion')}>Aus Notion importieren …</Button>
+      </section>
     </div>
   );
 }

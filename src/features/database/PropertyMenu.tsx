@@ -5,6 +5,7 @@ import { pageTitle } from '../../components/PageIcon';
 import { FORMULA_FUNCTIONS, parseFormula } from '../../lib/formula';
 import { usePages } from '../../store/pages';
 import { cx } from '../../lib/cx';
+import { GUEST } from '../../lib/mode';
 import { confirmDialog } from '../../store/confirm';
 import { PROPERTY_LABEL, useDatabases } from '../../store/databases';
 import { PROPERTY_ICON, PROPERTY_TYPES } from './propertyIcons';
@@ -144,6 +145,21 @@ function PropertySettings({ property }: { property: Property }) {
     if (targetId && !targetData) void store.load(targetId);
   }, [targetId, targetData, store]);
   const save = (config: Property['config']) => store.updateProperty({ ...property, config: { ...property.config, ...config } });
+
+  if (property.type === 'date' && !GUEST) {
+    return (
+      <label className="mb-1 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-hover">
+        <input
+          type="checkbox"
+          checked={property.config.remind === true}
+          onChange={(e) => save({ remind: e.target.checked })}
+          className="h-4 w-4 accent-[var(--c-accent)]"
+        />
+        <span className="flex-1">Am Tag erinnern</span>
+        <span className="text-2xs text-faint">9:00</span>
+      </label>
+    );
+  }
 
   if (property.type === 'relation') {
     const databases = Object.values(pages).filter((p) => p.type === 'database' && p.deletedAt === null);

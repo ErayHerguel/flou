@@ -20,29 +20,30 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          # Universal-App: läuft auf Apple Silicon und Intel
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
       - run: npm ci
       - run: npm test
-      - run: npm run build:mac -- --config src-tauri/tauri.updater.conf.json
+      - run: npm run build:mac:universal -- --config src-tauri/tauri.updater.conf.json
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
       - name: Dateien sammeln
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          DMG="src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/dmg/flou_${VERSION}_aarch64.dmg"
+          DMG="src-tauri/target.noindex/universal-apple-darwin/release/bundle/dmg/flou_${VERSION}_universal.dmg"
           test -f "$DMG" || { echo "DMG fehlt – stimmt die Version (npm run version:set) mit dem Tag überein?"; exit 1; }
           mkdir -p out
           cp "$DMG" out/flou.dmg
-          cp "$DMG" "out/flou_${VERSION}_aarch64.dmg"
+          cp "$DMG" "out/flou_${VERSION}_universal.dmg"
           sed "s|__REPO__|${GITHUB_REPOSITORY}|g" website/install.sh > out/install.sh
           # Update-Paket für die App (signiert)
-          BUNDLE=src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/macos
-          cp "$BUNDLE/flou.app.tar.gz" out/flou_aarch64.app.tar.gz
-          cp "$BUNDLE/flou.app.tar.gz.sig" out/flou_aarch64.app.tar.gz.sig
+          BUNDLE=src-tauri/target.noindex/universal-apple-darwin/release/bundle/macos
+          cp "$BUNDLE/flou.app.tar.gz" out/flou_universal.app.tar.gz
+          cp "$BUNDLE/flou.app.tar.gz.sig" out/flou_universal.app.tar.gz.sig
       - uses: actions/upload-artifact@v4
         with:
           name: macos
@@ -101,7 +102,9 @@ jobs:
               "notes": f"flou {version}",
               "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "platforms": {
-                  "darwin-aarch64": {"signature": sig("flou_aarch64.app.tar.gz"), "url": f"{base}/flou_aarch64.app.tar.gz"},
+                  # Eine Universal-App für beide Mac-Architekturen
+                  "darwin-aarch64": {"signature": sig("flou_universal.app.tar.gz"), "url": f"{base}/flou_universal.app.tar.gz"},
+                  "darwin-x86_64": {"signature": sig("flou_universal.app.tar.gz"), "url": f"{base}/flou_universal.app.tar.gz"},
                   "windows-x86_64": {"signature": sig(f"flou_{version}_x64-setup.exe"), "url": f"{base}/flou_{version}_x64-setup.exe"},
               },
           }
@@ -116,6 +119,6 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" \
             --title "flou $VERSION" \
-            --notes "**Mac** (Apple Silicon, macOS 13+): flou.dmg laden oder im Terminal \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\`
+            --notes "**Mac** (Apple Silicon und Intel, macOS 13+): flou.dmg laden oder im Terminal \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\`
 
           **Windows** (10/11, 64 Bit): flou-setup.exe laden und ausführen. Erscheint „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“."

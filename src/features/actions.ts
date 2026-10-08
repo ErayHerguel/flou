@@ -8,7 +8,7 @@ import { openToday, saveAsTemplate } from './templates/templates';
 import { reportError, toast } from '../store/toast';
 import { copyPageMarkdown, printPage } from './share/share';
 import { checkForUpdate, toggleAutoUpdate } from './update/updater';
-import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles } from './transfer/transfer';
+import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles, importNotion } from './transfer/transfer';
 import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
 import { quitApp } from './lifecycle';
@@ -277,6 +277,13 @@ export const actions: AppAction[] = [
     group: 'Allgemein',
     menu: 'file',
     run: importMarkdownFiles,
+  },
+  {
+    id: 'import.notion',
+    label: 'Aus Notion importieren …',
+    group: 'Allgemein',
+    menu: 'file',
+    run: importNotion,
   },
   {
     id: 'import.folder',

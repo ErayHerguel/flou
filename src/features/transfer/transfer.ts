@@ -4,7 +4,19 @@ import { APP_NAME } from '../../app.config';
 import { loadBoard } from '../../db/boards';
 import { loadDocs, saveContent } from '../../db/content';
 import { loadFiles } from '../board/files';
-import { loadSchema, loadValues } from '../../db/database';
+import {
+  emptyConfig,
+  insertProperty,
+  insertView,
+  loadSchema,
+  loadValues,
+  setSearchProps,
+  setValue,
+  type CellValue,
+  type Property,
+  type View,
+} from '../../db/database';
+import type { Statement } from '../../db/driver';
 import { insertPage, type PageMeta } from '../../db/pages';
 import { commit, flush } from '../../db/saveQueue';
 import { importImageFile } from '../../lib/assets';
@@ -14,8 +26,10 @@ import { descendantIds } from '../../lib/tree';
 import { usePages } from '../../store/pages';
 import { reportError, toast } from '../../store/toast';
 import { useUI } from '../../store/ui';
+import { nextColor, rowSearchText } from '../../store/databases';
 import { planExport, sanitizeName, type ExcalidrawFile, type ExportInput } from './exportPlan';
 import { planImport, resolveImages, type InFile } from './importPlan';
+import type { ColumnSpec } from './notion';
 
 async function exportPages(rootIds: string[], targetDir: string): Promise<void> {
   await flush();
@@ -70,7 +84,39 @@ export async function exportWorkspace(): Promise<void> {
   }
 }
 
-/** Importiert Markdown-Dateien als Seiten, alles in einer Transaktion. */
+/**
+ * Datenbank aus erkannten CSV-Spalten: Properties mit Auswahloptionen, eine Tabelle und – wenn es eine
+ * Auswahl „Status“ gibt – ein Board. `resolve` übersetzt Werte (Optionsnamen) in Property- und Options-IDs.
+ */
+export function importedSchema(databaseId: string, columns: ColumnSpec[]) {
+  const properties: Property[] = columns.map((column, sortOrder) => ({
+    id: newId(),
+    databaseId,
+    name: column.name,
+    type: column.type,
+    options: column.options.map((name, i) => ({ id: newId(), name, color: nextColor(i) })),
+    config: {},
+    sortOrder,
+  }));
+  const status = properties.find((p) => p.type === 'select' && /^status$/i.test(p.name)) ?? properties.find((p) => p.type === 'select');
+  const views: View[] = [{ id: newId(), databaseId, name: 'Tabelle', type: 'table', config: emptyConfig(), sortOrder: 0 }];
+  if (status) views.push({ id: newId(), databaseId, name: 'Board', type: 'board', config: { ...emptyConfig(), groupBy: status.id }, sortOrder: 1 });
+  const resolve = (values: Record<string, CellValue>) => {
+    const out: Record<string, CellValue> = {};
+    for (const property of properties) {
+      const value = values[property.name];
+      if (value === null || value === undefined) continue;
+      const optionId = (name: string) => property.options.find((o) => o.name === name)?.id;
+      if (property.type === 'select') out[property.id] = optionId(String(value)) ?? null;
+      else if (property.type === 'multi_select' && Array.isArray(value)) out[property.id] = value.map(optionId).filter((id): id is string => Boolean(id));
+      else out[property.id] = value;
+    }
+    return out;
+  };
+  return { properties, views, resolve };
+}
+
+/** Importiert Markdown-Dateien (und CSV-Datenbanken, z. B. aus Notion) als Seiten, alles in einer Transaktion. */
 export async function importEntries(files: InFile[], containerTitle: string | null): Promise<void> {
   if (files.length === 0) {
     toast('Keine Markdown-Dateien gefunden');
@@ -95,10 +141,10 @@ export async function importEntries(files: InFile[], containerTitle: string | nu
     order.set(parent, value + 1);
     return value;
   };
-  const meta = (id: string, parentId: string | null, title: string, sortOrder: number): PageMeta => ({
+  const meta = (id: string, parentId: string | null, title: string, sortOrder: number, type: PageMeta['type'] = 'page'): PageMeta => ({
     id,
     parentId,
-    type: 'page',
+    type,
     title,
     icon: null,
     cover: null,
@@ -110,19 +156,32 @@ export async function importEntries(files: InFile[], containerTitle: string | nu
   });
 
   const inserts = containerId ? [insertPage(meta(containerId, null, containerTitle!, rootSiblings))] : [];
-  const contents = [];
+  const schemas: Statement[] = [];
+  const contents: Statement[] = [];
   const idByKey = new Map(plan.nodes.map((n) => [n.key, n.id]));
+  const databases = new Map<string, ReturnType<typeof importedSchema>>();
   for (const node of plan.nodes) {
     const parentId = node.parentKey ? idByKey.get(node.parentKey)! : containerId;
     const sortOrder = parentId === null ? rootSiblings + next(null) : next(parentId);
-    inserts.push(insertPage(meta(node.id, parentId, node.title, sortOrder)));
+    inserts.push(insertPage(meta(node.id, parentId, node.title, sortOrder, node.columns ? 'database' : 'page')));
+    if (node.columns) {
+      const schema = importedSchema(node.id, node.columns);
+      databases.set(node.id, schema);
+      schemas.push(...schema.properties.map(insertProperty), ...schema.views.map(insertView));
+    }
+    const db = parentId ? databases.get(parentId) : undefined;
+    if (db && node.values) {
+      const values = db.resolve(node.values);
+      for (const [propertyId, value] of Object.entries(values)) contents.push(setValue(node.id, propertyId, value));
+      contents.push(setSearchProps(node.id, rowSearchText({ properties: db.properties, values: { [node.id]: values } }, node.id)));
+    }
     if (node.doc) {
       const doc = resolveImages(node.doc, imported);
       contents.push(...saveContent(node.id, doc, jsonText(doc), collectLinkTargets(doc, node.id), now));
     }
   }
-  // Erst alle Seiten, dann Inhalte: Links zwischen importierten Seiten finden ihr Ziel.
-  await commit([...inserts, ...contents]);
+  // Erst alle Seiten und Datenbank-Schemas, dann Inhalte und Werte: Verweise finden ihr Ziel.
+  await commit([...inserts, ...schemas, ...contents]);
   await usePages.getState().load();
   const first = containerId ?? plan.nodes.find((n) => n.parentKey === null)?.id;
   if (first) useUI.getState().open(first);
@@ -149,6 +208,17 @@ export async function importFolder(): Promise<void> {
     await importEntries(await invoke<InFile[]>('import_read', { paths: [dir] }), name);
   } catch (err) {
     reportError('Import fehlgeschlagen', err);
+  }
+}
+
+/** Notion: Export als „Markdown & CSV“, ZIP entpacken (Doppelklick), dann diesen Ordner wählen. */
+export async function importNotion(): Promise<void> {
+  try {
+    const dir = await pickFolder('Entpackten Notion-Export wählen (Markdown & CSV)');
+    if (!dir) return;
+    await importEntries(await invoke<InFile[]>('import_read', { paths: [dir] }), 'Aus Notion');
+  } catch (err) {
+    reportError('Import aus Notion fehlgeschlagen', err);
   }
 }
 

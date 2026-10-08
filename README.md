@@ -1,6 +1,6 @@
 # flou
 
-Lokale Notizen und Datenbanken für macOS (Apple Silicon) und Windows: schnell, tastaturfreundlich, offline.
+Lokale Notizen und Datenbanken für macOS (Apple Silicon und Intel) und Windows: schnell, tastaturfreundlich, offline.
 Kein Konto, kein Cloud-Server, keine Telemetrie. Alle Daten liegen auf deinem Computer – auch wenn du mit anderen zusammenarbeitest.
 
 ## Funktionen
@@ -24,6 +24,8 @@ Kein Konto, kein Cloud-Server, keine Telemetrie. Alle Daten liegen auf deinem Co
 - **Startseite** und **Favoriten**, Seitenbaum per Tastatur (`⇧⌘L`, dann Pfeiltasten, Enter, F2)
 - **Teilen**: Drucken bzw. „Als PDF sichern“ (`⌘P`), Seite als Markdown kopieren (`⇧⌘C`)
 - **Markdown-Export und -Import** (einzelne Seiten, ganzer Workspace, Ordner)
+- **Umzug aus Notion** (`⌘K` → „Aus Notion importieren“): Export „Markdown & CSV“ entpacken, Ordner wählen; Seiten, Bilder und Datenbanken samt Einträgen und Feldtypen kommen mit
+- **Erinnerungen**: Datums-Properties mit „Am Tag erinnern“ (im Menü der Property) melden sich am fälligen Tag ab 9 Uhr in flou, das Dock-Symbol hüpft; unter Windows zusätzlich als Mitteilung. (System-Mitteilungen auf dem Mac erlaubt Apple nur kostenpflichtig signierten Apps.)
 - **Automatisches Backup**: täglich, die letzten 7 bleiben erhalten
 - Helles, dunkles und System-Theme; Autosave ohne Speichern-Knopf
 
@@ -61,7 +63,7 @@ npm run licenses     # Lizenzen aller ausgelieferten Pakete prüfen
 npm run build:mac
 ```
 
-Das ist `npm run tauri build` für `aarch64-apple-darwin`. Ergebnis:
+Das ist `npm run tauri build` für `aarch64-apple-darwin` (schnell, für den eigenen Mac). Die veröffentlichten Releases baut GitHub als Universal-App für Apple Silicon und Intel (`npm run build:mac:universal`, braucht zusätzlich das Rust-Ziel `x86_64-apple-darwin`). Ergebnis:
 
 - App: `src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/macos/flou.app`
 - DMG: `src-tauri/target.noindex/aarch64-apple-darwin/release/bundle/dmg/flou_1.0.0_aarch64.dmg`

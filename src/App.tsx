@@ -11,6 +11,8 @@ import { createTauriDriver } from './db/tauriDriver';
 import { createPageAndOpen } from './features/actions';
 import { ensureSaved, quitApp } from './features/lifecycle';
 import { hydrateSpecial } from './features/templates/special';
+import { startReminders } from './features/reminders';
+import { ReminderBanner } from './features/ReminderBanner';
 import { TemplatePicker } from './features/templates/TemplatePicker';
 import { addToInbox } from './features/templates/templates';
 import { installMenu } from './features/menu';
@@ -71,6 +73,7 @@ function bootstrap(): Promise<void> {
       forgetPages(isLive, parentId && isLive(parentId) ? parentId : firstRoot());
     });
     scheduleStartupCheck();
+    startReminders(settings);
     if (IS_MAC) installMenu().catch((err) => console.error('Menü konnte nicht erstellt werden', err));
   })();
   return booting;
@@ -157,7 +160,11 @@ export function App() {
       {overlay === 'templates' && <TemplatePicker />}
       <ConfirmDialog />
       <Toasts />
-      <UpdateBanner />
+      {/* Hinweise unten rechts, übereinander */}
+      <div className="fixed right-4 bottom-4 z-50 flex w-[320px] flex-col gap-2 print:hidden">
+        <ReminderBanner />
+        <UpdateBanner />
+      </div>
     </div>
   );
 }

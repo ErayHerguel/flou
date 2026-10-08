@@ -26,6 +26,8 @@ export interface PropertyConfig {
   aggregate?: RollupAggregate;
   /** formula */
   expression?: string;
+  /** date: am fälligen Tag eine Mitteilung zeigen */
+  remind?: boolean;
 }
 
 export const TAG_COLORS = ['gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red'] as const;

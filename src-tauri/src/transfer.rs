@@ -84,6 +84,15 @@ fn is_markdown(path: &Path) -> bool {
     )
 }
 
+/// Markdown-Seiten und CSV-Tabellen (Datenbanken aus dem Notion-Export).
+fn is_importable(path: &Path) -> bool {
+    is_markdown(path)
+        || path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("csv"))
+}
+
 fn read_file(path: &Path, rel: String, out: &mut Vec<InFile>) -> Result<(), String> {
     if out.len() >= MAX_IMPORT_FILES {
         return Err(format!("Mehr als {MAX_IMPORT_FILES} Dateien"));
@@ -116,7 +125,7 @@ fn walk(dir: &Path, base: &Path, out: &mut Vec<InFile>) -> Result<(), String> {
         }
         if file_type.is_dir() {
             walk(&path, base, out)?;
-        } else if is_markdown(&path) {
+        } else if is_importable(&path) {
             let rel = path
                 .strip_prefix(base)
                 .map_err(|e| e.to_string())?
@@ -138,7 +147,7 @@ pub fn import_read(paths: Vec<String>) -> Result<Vec<InFile>, String> {
         let path = PathBuf::from(&raw);
         if path.is_dir() {
             walk(&path, &path, &mut out)?;
-        } else if is_markdown(&path) {
+        } else if is_importable(&path) {
             let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             read_file(&path, name, &mut out)?;
         }

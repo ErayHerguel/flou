@@ -7,7 +7,7 @@ export function UpdateBanner() {
   if (!visible || phase === 'idle') return null;
   const busy = phase === 'downloading' || phase === 'ready';
   return (
-    <div className="fixed right-4 bottom-4 z-50 w-[320px] animate-pop-in rounded-lg bg-surface p-4 text-sm shadow-popover print:hidden">
+    <div className="animate-pop-in rounded-lg bg-surface p-4 text-sm shadow-popover">
       <div className="flex items-start gap-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
           <Download size={16} />

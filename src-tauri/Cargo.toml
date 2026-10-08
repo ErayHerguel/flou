@@ -1,6 +1,6 @@
 [package]
 name = "flou"
-version = "1.6.0"
+version = "1.7.0"
 description = "flou – lokale Notizen und Datenbanken"
 edition = "2021"
 publish = false
@@ -40,6 +40,10 @@ opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+
+# Mitteilungen (Toasts) nur unter Windows, siehe src/notify.rs.
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+tauri-plugin-notification = "~2.4.0"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_System_Power"] }

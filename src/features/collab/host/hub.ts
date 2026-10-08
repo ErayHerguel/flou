@@ -235,6 +235,7 @@ function sanitizePropertyConfig(v: unknown): PropertyConfig {
   if (v.targetPropertyId !== undefined) config.targetPropertyId = isId(v.targetPropertyId) ? v.targetPropertyId : invalid();
   if (v.aggregate !== undefined) config.aggregate = AGGREGATES.includes(v.aggregate as RollupAggregate) ? (v.aggregate as RollupAggregate) : invalid();
   if (v.expression !== undefined) config.expression = isText(v.expression, 5000) ? v.expression : invalid();
+  if (v.remind !== undefined) config.remind = typeof v.remind === 'boolean' ? v.remind : invalid();
   return config;
 }
 

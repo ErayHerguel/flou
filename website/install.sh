@@ -7,8 +7,8 @@ REPO="__REPO__"
 APP="/Applications/flou.app"
 URL="https://github.com/$REPO/releases/latest/download/flou.dmg"
 
-if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
-  echo "flou benötigt einen Mac mit Apple Silicon (M1 oder neuer)." >&2
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "Dieser Installer ist für den Mac. Für Windows gibt es flou-setup.exe auf der Website." >&2
   exit 1
 fi
 

@@ -2,6 +2,7 @@ mod assets;
 mod backup;
 mod db;
 mod desk;
+mod notify;
 mod paths;
 mod share;
 mod transfer;
@@ -83,7 +84,11 @@ fn app_quit(app: AppHandle) {
 
 pub fn run() {
     let started = StartTime(Instant::now());
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    if let Some(plugin) = notify::plugin() {
+        builder = builder.plugin(plugin);
+    }
+    builder
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(paths::DB_URL, migrations())
@@ -116,6 +121,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_quit,
             app_ready,
+            notify::notify,
             print_page,
             assets::file_import,
             assets::file_import_bytes,

@@ -1,5 +1,7 @@
 import type { JSONContent } from '@tiptap/core';
+import type { CellValue } from '../../db/database';
 import { fromMarkdown, stripFrontMatter } from '../../lib/markdown/parse';
+import { cellValue, inferColumn, parseCsv, stripPropertyLines, type ColumnSpec } from './notion';
 
 export interface InFile {
   /** Pfad relativ zum gewählten Ordner mit "/" */
@@ -14,6 +16,10 @@ export interface ImportNode {
   parentKey: string | null;
   title: string;
   doc: JSONContent | null;
+  /** Datenbank (aus einer CSV-Datei, z. B. Notion-Export) mit erkannten Spalten */
+  columns?: ColumnSpec[];
+  /** Eintrag einer Datenbank: Werte nach Spaltenname */
+  values?: Record<string, CellValue>;
 }
 
 export interface ImportPlan {
@@ -26,6 +32,9 @@ export interface ImportPlan {
 const IMAGE_PLACEHOLDER = 'import:';
 
 const stripExt = (path: string) => path.replace(/\.(md|markdown)$/i, '');
+/** "Aufgaben 1a2b…_all.csv" und "Aufgaben 1a2b….csv" gehören zum Ordner "Aufgaben 1a2b…". */
+const csvKey = (path: string) => path.replace(/(_all)?\.csv$/i, '');
+const isCsv = (path: string) => /\.csv$/i.test(path);
 /** Notion hängt beim Export eine 32-stellige ID an Datei- und Ordnernamen. */
 const cleanTitle = (segment: string) => segment.replace(/\s[0-9a-f]{32}$/i, '').trim() || 'Ohne Titel';
 const parentOf = (key: string) => (key.includes('/') ? key.slice(0, key.lastIndexOf('/')) : null);
@@ -88,9 +97,39 @@ export function planImport(files: InFile[], newId: () => string, existingTitles:
   };
   const sources = new Map<string, InFile>();
   for (const file of files) {
+    if (isCsv(file.rel)) continue;
     const key = stripExt(file.rel);
     ensure(key);
     sources.set(key, file);
+  }
+
+  // Datenbanken: neuere Notion-Exporte legen zusätzlich "_all.csv" mit allen Einträgen ab; die gewinnt.
+  const tables = new Map<string, InFile>();
+  for (const file of files.filter((f) => isCsv(f.rel))) {
+    const key = csvKey(file.rel);
+    if (!tables.has(key) || /_all\.csv$/i.test(file.rel)) tables.set(key, file);
+  }
+  for (const [key, file] of tables) {
+    const [header, ...records] = parseCsv(file.content);
+    if (!header?.length) continue;
+    const db = ensure(key);
+    const columns = header.slice(1).map((name, i) => inferColumn(name.trim() || `Spalte ${i + 2}`, records.map((r) => r[i + 1] ?? '')));
+    db.columns = columns;
+    // Einträge mit eigener Seite (Markdown im Ordner der Datenbank) über den Titel zuordnen.
+    const pagesOfDb = [...sources.keys()].filter((k) => parentOf(k) === key);
+    const used = new Set<string>();
+    records.forEach((record, index) => {
+      const title = (record[0] ?? '').trim() || 'Ohne Titel';
+      const match = pagesOfDb.find((k) => !used.has(k) && cleanTitle(k.split('/').pop()!) === title);
+      const row = match ? nodes.get(match)! : ensure(`${key}/\u0000${index}`);
+      if (match) {
+        used.add(match);
+        const file = sources.get(match)!;
+        sources.set(match, { ...file, content: stripPropertyLines(file.content, header) });
+      }
+      row.title = title;
+      row.values = Object.fromEntries(columns.map((c, i) => [c.name, cellValue(c, record[i + 1] ?? '')]));
+    });
   }
 
   // Erster Durchgang: Titel aus führender H1, damit [[Titel]] dateiübergreifend auflösbar ist.
@@ -113,9 +152,11 @@ export function planImport(files: InFile[], newId: () => string, existingTitles:
       resolvePage(target, kind) {
         if (kind === 'title') return titles.get(target.toLowerCase()) ?? null;
         const path = safeDecode(target.split('#')[0]);
-        if (!/\.(md|markdown)$/i.test(path)) return null;
+        if (!/\.(md|markdown|csv)$/i.test(path)) return null;
         const segments = normalize([...(dir ? dir.split('/') : []), ...path.split('/')]);
-        return segments ? (nodes.get(stripExt(segments.join('/')))?.id ?? null) : null;
+        if (!segments) return null;
+        const joined = segments.join('/');
+        return nodes.get(isCsv(joined) ? csvKey(joined) : stripExt(joined))?.id ?? null;
       },
       image(src) {
         images.push(joinAbs(absDir, safeDecode(src)));

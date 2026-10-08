@@ -1,7 +1,7 @@
 {
   "name": "flou",
   "private": true,
-  "version": "1.6.0",
+  "version": "1.7.0",
   "type": "module",
   "scripts": {
     "dev": "node scripts/excalidraw-assets.mjs && vite",
@@ -10,6 +10,7 @@
     "test": "vitest run",
     "tauri": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri",
     "build:mac": "npm run tauri build -- --target aarch64-apple-darwin",
+    "build:mac:universal": "npm run tauri build -- --target universal-apple-darwin",
     "install-mac": "bash scripts/install-mac.sh",
     "smoke": "bash scripts/smoke-test.sh",
     "cargo-check": "cd src-tauri && PATH=\"$HOME/.cargo/bin:$PATH\" cargo check",
