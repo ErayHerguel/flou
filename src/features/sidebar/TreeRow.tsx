@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { ChevronRight, House, MoreHorizontal, PenLine, Plus, Star, Trash2 } from 'lucide-react';
+import { ChevronRight, CopyPlus, House, MoreHorizontal, PenLine, Plus, Star, Trash2 } from 'lucide-react';
 import { memo, useCallback, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { MenuList } from '../../components/MenuList';
 import { PageIcon, pageTitle } from '../../components/PageIcon';
@@ -7,7 +7,8 @@ import { Popover, pointAnchor, type Anchor } from '../../components/Popover';
 import { cx } from '../../lib/cx';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
-import { createPageAndOpen } from '../actions';
+import { createPageAndOpen, duplicateAndOpen } from '../actions';
+import { GUEST } from '../../lib/mode';
 import { useCanEdit } from '../collab/sources';
 
 export type DropPosition = 'before' | 'after' | 'inside';
@@ -149,6 +150,7 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
                 ? [{ label: 'Unterseite hinzufügen', icon: Plus, onSelect: () => void createPageAndOpen(id) }]
                 : []),
               ...(editable ? [{ label: 'Umbenennen', icon: PenLine, onSelect: () => setRenaming(true) }] : []),
+              ...(GUEST ? [] : [{ label: 'Duplizieren', icon: CopyPlus, onSelect: () => void duplicateAndOpen(id) }]),
               {
                 label: useUI.getState().favorites.includes(id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
                 icon: Star,

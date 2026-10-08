@@ -5,10 +5,11 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GuestApp } from './GuestApp';
+import { QuickNote } from './features/quick/QuickNote';
 import { GUEST } from './lib/mode';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>{GUEST ? <GuestApp /> : <App />}</ErrorBoundary>
+    <ErrorBoundary>{location.hash === '#quick' ? <QuickNote /> : GUEST ? <GuestApp /> : <App />}</ErrorBoundary>
   </StrictMode>,
 );

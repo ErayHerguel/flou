@@ -1,4 +1,4 @@
-import { ChevronsLeft, House, Monitor, Moon, Plus, Search, Settings, Sun, Trash2, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ChevronsLeft, House, Monitor, Moon, Plus, Search, Settings, Sun, Trash2, type LucideIcon } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { APP_NAME } from '../../app.config';
 import logo from '../../assets/logo.svg';
@@ -115,6 +115,11 @@ function SidebarContent({ narrow }: { narrow: boolean }) {
         {fullAccess && (
           <SidebarButton icon={Plus} onClick={() => void newPage.run()} hint={newPage.keys && formatCombo(newPage.keys)}>
             Neue Seite
+          </SidebarButton>
+        )}
+        {!GUEST && (
+          <SidebarButton icon={CalendarDays} onClick={() => void actionById('daily.today').run()} hint={formatCombo('Mod+Shift+D')}>
+            Heute
           </SidebarButton>
         )}
         {hasHome && (

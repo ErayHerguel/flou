@@ -1,6 +1,7 @@
 mod assets;
 mod backup;
 mod db;
+mod desk;
 mod paths;
 mod share;
 mod transfer;
@@ -97,6 +98,7 @@ pub fn run() {
         .manage(started)
         .setup(|app| {
             paths::ensure_dirs(app.handle())?;
+            desk::setup(app)?;
             backup::schedule(app.handle().clone());
             // Das Fenster startet unsichtbar und wird vom Frontend nach dem ersten Rendern gezeigt
             // (kein weißes Aufblitzen im Dark Mode). Fallback, falls das Frontend hängt:
@@ -123,6 +125,7 @@ pub fn run() {
             assets::open_external,
             backup::backup_now,
             db::db_tx,
+            desk::quick_note_open,
             paths::app_paths,
             paths::reveal_dir,
             share::open_shared,
@@ -140,9 +143,11 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("Fehler beim Starten von flou")
-        .run(|app, event| {
-            if let tauri::RunEvent::Exit = event {
-                share::shutdown(app);
-            }
+        .run(|app, event| match event {
+            tauri::RunEvent::Exit => share::shutdown(app),
+            // Klick aufs Dock-Symbol, während flou im Hintergrund läuft: Fenster wieder zeigen.
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => desk::show_main(app),
+            _ => {}
         });
 }

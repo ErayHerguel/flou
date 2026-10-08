@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Copy, History, House, MessageSquare, MoreHorizontal, MoveHorizontal, PanelLeft, Printer, Star, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, CopyPlus, History, LayoutTemplate, House, MessageSquare, MoreHorizontal, MoveHorizontal, PanelLeft, Printer, Star, Trash2 } from 'lucide-react';
 import { Fragment, useCallback, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { MenuList } from '../../components/MenuList';
@@ -15,7 +15,8 @@ import { useCanEdit } from '../collab/sources';
 import { ancestorIds } from '../../lib/tree';
 import { usePages } from '../../store/pages';
 import { useUI } from '../../store/ui';
-import { actionById } from '../actions';
+import { actionById, duplicateAndOpen } from '../actions';
+import { saveAsTemplate } from '../templates/templates';
 import { formatCombo } from '../shortcuts/keys';
 
 /** Abstand für die Ampel-Knöpfe, wenn die Seitenleiste ausgeblendet ist. */
@@ -122,6 +123,12 @@ export function TopBar({ pageId }: { pageId: string | null }) {
                 icon: House,
                 onSelect: () => useUI.getState().setHome(isHome ? null : page.id),
               },
+              ...(GUEST
+                ? []
+                : [
+                    { label: 'Duplizieren', icon: CopyPlus, onSelect: () => void duplicateAndOpen(page.id) },
+                    { label: 'Als Vorlage speichern', icon: LayoutTemplate, onSelect: () => void saveAsTemplate(page.id) },
+                  ]),
               ...(page.type === 'page' && !GUEST
                 ? [{ label: 'Versionsverlauf …', icon: History, onSelect: () => useUI.getState().setOverlay('versions') }]
                 : []),

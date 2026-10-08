@@ -11,6 +11,11 @@ Kein Konto, kein Cloud-Server, keine Telemetrie. Alle Daten liegen auf deinem Co
 - **Zusammenarbeiten** (Seitenleiste „Teilen“): Personen per Link zu einzelnen Seiten, Boards oder Datenbanken einladen, mit Lese- oder Schreibrecht. Gemeinsames Bearbeiten live mit Cursorn, im Browser oder in der eigenen flou-App. Dein Computer ist der Server (siehe unten)
 - **flou auf dem iPhone** (Einstellungen → Meine Geräte → „iPhone verbinden“): QR-Code scannen, zum Home-Bildschirm hinzufügen, fertig. Der ganze Workspace live, ohne App Store, solange flou auf dem Computer läuft
 - **Einstellungen** (`⌘,`): Design, Teilen, Geräte, Daten und Backups, Updates
+- **Schnellnotiz von überall** (`⌃⌥N`, auch wenn flou im Hintergrund ist): kleines Fenster, `⌘↩` legt die Notiz in den „Eingang“ (erste Zeile = Titel)
+- **Heute** (`⇧⌘D`): Tagesnotiz mit Datum unter „Tagesnotizen“; mit eigener Vorlage „Tagesnotiz“ anpassbar
+- **Vorlagen** (`⌘K` → „Neu aus Vorlage“ oder `/vorlage`): Meeting-Notizen, Projekt, Wochenplan, Tagesnotiz, Aufgaben- und Lese-Datenbank; jede Seite unter „Vorlagen“ ist eine Vorlage, „Als Vorlage speichern“ im Seitenmenü
+- **Duplizieren** (Seitenmenü oder Seitenleiste): Kopie samt Unterseiten, Datenbank-Einträgen und Boards
+- **Menüleisten-Symbol**: Schnellnotiz und Öffnen von dort; schließt du das Fenster, während geteilt wird, läuft flou im Hintergrund weiter
 - **Kommentare** an Textstellen (`⇧⌘M`) und **Versionsverlauf** je Seite (eine Version je 10 Minuten, die letzten 50)
 - **Slash-Menü** (`/`) mit Fuzzy-Suche, **Markdown-Shortcuts** beim Tippen, schwebende Formatierungsleiste
 - **Seitenlinks** mit `[[` und Backlinks am Seitenende

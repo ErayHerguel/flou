@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { flush, useSaveStatus } from '../db/saveQueue';
 import { confirmDialog } from '../store/confirm';
+import { confirmStopSharing } from './collab/host/hosting';
 
 /** Schreibt alles Ausstehende. Liefert false, wenn der Nutzer bei Speicherfehlern abbricht. */
 export async function ensureSaved(): Promise<boolean> {
@@ -16,5 +17,5 @@ export async function ensureSaved(): Promise<boolean> {
 }
 
 export async function quitApp(): Promise<void> {
-  if (await ensureSaved()) await invoke('app_quit');
+  if ((await confirmStopSharing()) && (await ensureSaved())) await invoke('app_quit');
 }

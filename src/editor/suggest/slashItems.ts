@@ -23,6 +23,7 @@ import {
   Quote,
   Type,
   type LucideIcon,
+  LayoutTemplate,
 } from 'lucide-react';
 import { pickAndStoreFile, pickImage } from '../../lib/assets';
 import { columnsContent } from '../nodes/columns';
@@ -31,6 +32,8 @@ import { useDatabases } from '../../store/databases';
 import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
 import { createSubpageBlock } from './subpage';
+import { openTemplatePicker } from '../../features/templates/TemplatePicker';
+import { useUI } from '../../store/ui';
 
 export interface SlashContext {
   pageId: string;
@@ -43,6 +46,8 @@ export interface SlashItem {
   group: 'Grundblöcke' | 'Layout' | 'Medien' | 'Seiten';
   keywords: string[];
   icon: LucideIcon;
+  /** Nur im eigenen Workspace (nicht als Gast) */
+  hostOnly?: boolean;
   run(editor: Editor, range: Range, ctx: SlashContext): void;
 }
 
@@ -208,6 +213,25 @@ export const SLASH_ITEMS: SlashItem[] = [
     icon: FileText,
     run: (editor, range, ctx) =>
       void createSubpageBlock(editor, range, ctx.pageId, (parentId) => usePages.getState().create({ parentId })),
+  },
+  {
+    id: 'template',
+    title: 'Aus Vorlage',
+    description: 'Unterseite aus einer Vorlage',
+    group: 'Seiten',
+    keywords: ['vorlage', 'template', 'meeting', 'projekt', 'wochenplan'],
+    icon: LayoutTemplate,
+    hostOnly: true,
+    run: (editor, range, ctx) => {
+      editor.chain().focus().deleteRange(range).run();
+      openTemplatePicker({
+        parentId: ctx.pageId,
+        onCreated: (id) => {
+          if (!editor.isDestroyed) editor.chain().focus().insertContent({ type: 'pageRef', attrs: { pageId: id } }).run();
+          useUI.getState().setExpanded(ctx.pageId, true);
+        },
+      });
+    },
   },
   {
     id: 'database',

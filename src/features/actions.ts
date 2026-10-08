@@ -2,6 +2,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { getActiveEditor } from '../editor/active';
 import { useDatabases } from '../store/databases';
 import { createBoard } from './board/create';
+import { duplicatePage } from './duplicate';
+import { openTemplatePicker } from './templates/TemplatePicker';
+import { openToday, saveAsTemplate } from './templates/templates';
+import { reportError, toast } from '../store/toast';
 import { copyPageMarkdown, printPage } from './share/share';
 import { checkForUpdate, toggleAutoUpdate } from './update/updater';
 import { backupNow, exportCurrentPage, exportWorkspace, importFolder, importMarkdownFiles } from './transfer/transfer';
@@ -43,6 +47,17 @@ async function createDatabaseAndOpen(parentId: string | null): Promise<void> {
   if (parentId) useUI.getState().setExpanded(parentId, true);
   useUI.getState().open(id);
   useUI.getState().requestFocus('title');
+}
+
+/** Kopie neben dem Original anlegen und öffnen. */
+export async function duplicateAndOpen(id: string): Promise<void> {
+  try {
+    const copy = await duplicatePage(id);
+    useUI.getState().open(copy);
+    toast('Kopie angelegt');
+  } catch (err) {
+    reportError('Seite konnte nicht dupliziert werden', err);
+  }
 }
 
 async function createBoardAndOpen(parentId: string | null): Promise<void> {
@@ -117,6 +132,48 @@ export const actions: AppAction[] = [
     keys: 'Mod+Alt+B',
     menu: 'file',
     run: () => createBoardAndOpen(null),
+  },
+  {
+    id: 'daily.today',
+    label: 'Heute (Tagesnotiz)',
+    group: 'Seite',
+    keys: 'Mod+Shift+D',
+    menu: 'go',
+    run: openToday,
+  },
+  {
+    id: 'quick.open',
+    label: 'Schnellnotiz (⌃⌥N, auch von außerhalb)',
+    group: 'Seite',
+    menu: 'file',
+    run: () => invoke('quick_note_open'),
+  },
+  {
+    id: 'templates.new',
+    label: 'Neu aus Vorlage …',
+    group: 'Seite',
+    menu: 'file',
+    run: () => openTemplatePicker(),
+  },
+  {
+    id: 'page.duplicate',
+    label: 'Seite duplizieren',
+    group: 'Seite',
+    menu: 'file',
+    run: () => {
+      const page = currentPage();
+      if (page) return duplicateAndOpen(page.id);
+    },
+  },
+  {
+    id: 'page.saveTemplate',
+    label: 'Als Vorlage speichern',
+    group: 'Seite',
+    menu: 'file',
+    run: () => {
+      const page = currentPage();
+      if (page) return saveAsTemplate(page.id);
+    },
   },
   {
     id: 'page.rename',

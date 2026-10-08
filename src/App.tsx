@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -8,13 +9,16 @@ import { setDriver } from './db/driver';
 import { loadSettings } from './db/settings';
 import { createTauriDriver } from './db/tauriDriver';
 import { createPageAndOpen } from './features/actions';
-import { ensureSaved } from './features/lifecycle';
+import { ensureSaved, quitApp } from './features/lifecycle';
+import { hydrateSpecial } from './features/templates/special';
+import { TemplatePicker } from './features/templates/TemplatePicker';
+import { addToInbox } from './features/templates/templates';
 import { installMenu } from './features/menu';
 import { initPaths, openExternal } from './lib/assets';
 import { IS_MAC } from './lib/platform';
 import { indexDatabaseValues } from './features/database/searchIndex';
 import { CommentsDialog } from './features/history/CommentsDialog';
-import { confirmStopSharing, useHosting } from './features/collab/host/hosting';
+import { useHosting } from './features/collab/host/hosting';
 import { ShareDialog } from './features/collab/host/ShareDialog';
 import { JoinDialog } from './features/collab/JoinDialog';
 import { SettingsDialog } from './features/settings/SettingsDialog';
@@ -52,6 +56,7 @@ function bootstrap(): Promise<void> {
     useUI.getState().hydrate(settings);
     hydrateUpdates(settings);
     await usePages.getState().load();
+    hydrateSpecial(settings);
     await useHosting.getState().hydrate(settings);
     const welcomeId = await runFirstStart(settings);
     if (welcomeId) useUI.getState().open(welcomeId);
@@ -104,10 +109,22 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (!(await confirmStopSharing()) || !(await ensureSaved())) event.preventDefault();
+    const appWindow = getCurrentWindow();
+    const unlisten = appWindow.onCloseRequested(async (event) => {
+      // Solange geteilt wird, läuft flou in der Menüleiste weiter (Gäste und eigene Geräte bleiben verbunden).
+      if (useHosting.getState().live) {
+        event.preventDefault();
+        await ensureSaved();
+        await appWindow.hide();
+        return;
+      }
+      if (!(await ensureSaved())) event.preventDefault();
     });
-    return () => void unlisten.then((off) => off());
+    const offQuick = listen<string>('quick-note', (event) => void addToInbox(event.payload));
+    const offQuit = listen('tray:quit', () => void quitApp());
+    return () => {
+      for (const off of [unlisten, offQuick, offQuit]) void off.then((stop) => stop());
+    };
   }, []);
 
   if (boot.status === 'loading') return <div data-tauri-drag-region className="h-full" />;
@@ -137,6 +154,7 @@ export function App() {
       {overlay === 'share' && <ShareDialog />}
       {overlay === 'join' && <JoinDialog />}
       {overlay === 'settings' && <SettingsDialog />}
+      {overlay === 'templates' && <TemplatePicker />}
       <ConfirmDialog />
       <Toasts />
       <UpdateBanner />
