@@ -1,6 +1,6 @@
 import { Modal } from '../../components/Modal';
 import { useUI } from '../../store/ui';
-import { availableActions as actions } from '../actions';
+import { availableActions } from '../actions';
 import { formatCombo } from './keys';
 
 /** Kürzel, die der Editor selbst verarbeitet (TipTap-Standards und eigene Erweiterungen). */
@@ -49,6 +49,7 @@ function Row({ label, keys }: { label: string; keys: string }) {
 
 export function ShortcutsDialog() {
   const close = () => useUI.getState().setOverlay(null);
+  const actions = availableActions();
   const groups = new Map<string, typeof actions>();
   for (const action of actions.filter((a) => a.keys)) groups.set(action.group, [...(groups.get(action.group) ?? []), action]);
 

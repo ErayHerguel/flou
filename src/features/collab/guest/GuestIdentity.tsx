@@ -12,7 +12,9 @@ export function GuestIdentity() {
       <Avatar person={me} size={22} />
       <div className="min-w-0 leading-tight">
         <div className="truncate text-sm text-text">{me.name}</div>
-        {host && <div className="truncate text-2xs text-faint">Workspace von {host.name}</div>}
+        {host && (
+          <div className="truncate text-2xs text-faint">{me.kind === 'device' ? `Verbunden mit ${host.name}` : `Workspace von ${host.name}`}</div>
+        )}
       </div>
     </div>
   );

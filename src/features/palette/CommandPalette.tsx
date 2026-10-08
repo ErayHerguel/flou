@@ -6,11 +6,12 @@ import { MARK_END, MARK_START, searchPages, type SearchHit } from '../../db/sear
 import { cx } from '../../lib/cx';
 import { GUEST } from '../../lib/mode';
 import { connection } from '../collab/guest/connection';
+import { useAccess } from '../collab/sources';
 import { fuzzyFilter } from '../../lib/fuzzy';
 import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
 import { useUI } from '../../store/ui';
-import { availableActions as actions, type AppAction } from '../actions';
+import { availableActions, type AppAction } from '../actions';
 import { formatCombo } from '../shortcuts/keys';
 
 type Item =
@@ -18,7 +19,6 @@ type Item =
   | { kind: 'action'; action: AppAction; section: string }
   | { kind: 'create'; title: string; section: string };
 
-const paletteActions = actions.filter((a) => !a.hideInPalette);
 
 /** Hebt Treffer im Snippet hervor, ohne HTML zu interpretieren. */
 function Snippet({ text }: { text: string }) {
@@ -56,6 +56,8 @@ export function CommandPalette({ mode }: { mode: 'palette' | 'search' }) {
   const pages = usePages((s) => s.pages);
   const close = () => useUI.getState().setOverlay(null);
 
+  const paletteActions = useMemo(() => availableActions().filter((a) => !a.hideInPalette), []);
+  const fullAccess = useAccess((s) => s.access === null);
   const actionMode = query.startsWith('>');
   const q = (actionMode ? query.slice(1) : query).trim();
 
@@ -96,12 +98,12 @@ export function CommandPalette({ mode }: { mode: 'palette' | 'search' }) {
       .slice(0, 10)
       .map((h) => ({ kind: 'page', id: h.id, snippet: h.snippet, section: 'Im Inhalt gefunden' }));
     // Gäste legen keine Seiten auf oberster Ebene an.
-    const create: Item[] = GUEST ? [] : [{ kind: 'create', title: q, section: 'Neu' }];
+    const create: Item[] = fullAccess ? [{ kind: 'create', title: q, section: 'Neu' }] : [];
     const actionMatches = actionItems(fuzzyFilter(paletteActions, q, (a) => [a.label]).slice(0, 4));
     return mode === 'search'
       ? [...textItems, ...titleItems, ...create]
       : [...titleItems, ...textItems, ...actionMatches, ...create];
-  }, [pages, hits, q, actionMode, mode]);
+  }, [pages, hits, q, actionMode, mode, paletteActions, fullAccess]);
 
   useEffect(() => setActive(0), [items.length, q]);
   useEffect(() => {

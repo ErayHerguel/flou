@@ -22,7 +22,7 @@ export function PageHeader({ page }: { page: PageMeta }) {
   };
 
   return (
-    <div className={page.cover ? 'group/header pt-6' : 'group/header pt-16'}>
+    <div className={page.cover ? 'group/header pt-6' : 'group/header pt-8 md:pt-16'}>
       {page.icon && (
         <button
           disabled={!editable}
@@ -35,7 +35,7 @@ export function PageHeader({ page }: { page: PageMeta }) {
       )}
       <div
         className={cx(
-          'flex h-7 items-center gap-1 opacity-0 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100',
+          'touch-reveal flex h-7 items-center gap-1 opacity-0 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100',
           !editable && 'invisible',
         )}
       >
@@ -93,7 +93,7 @@ export function BoardHeader({ page }: { page: PageMeta }) {
         value={page.title}
         placeholder="Ohne Titel"
         onChange={(e) => update(page.id, { title: e.target.value })}
-        className="min-w-0 flex-1 bg-transparent text-lg font-semibold outline-none placeholder:text-faint"
+        className="keep-size min-w-0 flex-1 bg-transparent text-lg font-semibold outline-none placeholder:text-faint"
       />
       {iconPicker && (
         <Popover anchor={iconPicker} onClose={closePicker}>
@@ -163,7 +163,7 @@ function TitleInput({ page, editable }: { page: PageMeta; editable: boolean }) {
           toEditor();
         }
       }}
-      className="mt-1 block w-full resize-none overflow-hidden bg-transparent text-title font-bold tracking-tight text-text outline-none placeholder:text-faint"
+      className="keep-size mt-1 block w-full resize-none overflow-hidden bg-transparent text-title font-bold tracking-tight text-text outline-none placeholder:text-faint"
     />
   );
 }

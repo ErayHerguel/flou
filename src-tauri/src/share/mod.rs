@@ -5,6 +5,7 @@
 //! was jemand sehen und ändern darf. Erreichbar wird der Server über einen Cloudflare Quick Tunnel
 //! (cloudflared, Apache-2.0, ohne Konto). Die Daten bleiben in der lokalen Datenbank.
 
+mod awake;
 mod server;
 mod tunnel;
 
@@ -102,6 +103,10 @@ struct Running {
     generation: u64,
     shutdown: Option<oneshot::Sender<()>>,
     tunnel: Arc<Mutex<Option<Child>>>,
+    /// Hält den Computer wach, solange geteilt wird (falls gewünscht); endet beim Verwerfen.
+    awake: Option<awake::KeepAwake>,
+    /// Kanal für die Adressmeldung an eigene Geräte; kann nachträglich gesetzt werden.
+    topic: Arc<Mutex<Option<String>>>,
 }
 
 pub struct Share {
@@ -172,8 +177,23 @@ struct MessageEvent<'a> {
 }
 
 /// Startet den Server und baut den Tunnel auf. Läuft er schon, wird nur der Status geliefert.
+///
+/// `topic`: geheimer Kanalname bei ntfy.sh, unter dem die aktuelle Adresse für eigene Geräte
+/// gemeldet wird (nur die Adresse, nie ein Zugangsschlüssel). `keep_awake`: kein Ruhezustand,
+/// solange geteilt wird.
 #[tauri::command]
-pub async fn share_start(app: AppHandle, share: State<'_, Share>, db: State<'_, Db>) -> Result<ShareStatus, String> {
+pub async fn share_start(
+    app: AppHandle,
+    share: State<'_, Share>,
+    db: State<'_, Db>,
+    topic: Option<String>,
+    keep_awake: bool,
+) -> Result<ShareStatus, String> {
+    if let Some(topic) = &topic {
+        if !tunnel::valid_topic(topic) {
+            return Err("Ungültiger Kanalname".into());
+        }
+    }
     if share.running.lock().unwrap().is_some() {
         return Ok(share.status.lock().unwrap().clone());
     }
@@ -193,7 +213,15 @@ pub async fn share_start(app: AppHandle, share: State<'_, Share>, db: State<'_, 
 
     let generation = share.generation.fetch_add(1, Ordering::SeqCst) + 1;
     let slot = Arc::new(Mutex::new(None));
-    *share.running.lock().unwrap() = Some(Running { hub, generation, shutdown: Some(shutdown), tunnel: slot.clone() });
+    let topic = Arc::new(Mutex::new(topic));
+    *share.running.lock().unwrap() = Some(Running {
+        hub,
+        generation,
+        shutdown: Some(shutdown),
+        tunnel: slot.clone(),
+        awake: keep_awake.then(awake::KeepAwake::start),
+        topic: topic.clone(),
+    });
     let status = ShareStatus {
         phase: "starting",
         url: None,
@@ -205,7 +233,7 @@ pub async fn share_start(app: AppHandle, share: State<'_, Share>, db: State<'_, 
 
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
-        tunnel::run(handle, port, slot, generation).await;
+        tunnel::run(handle, port, slot, generation, topic).await;
     });
     Ok(status)
 }
@@ -213,6 +241,40 @@ pub async fn share_start(app: AppHandle, share: State<'_, Share>, db: State<'_, 
 #[tauri::command]
 pub fn share_stop(app: AppHandle, share: State<'_, Share>) {
     share.stop(&app);
+}
+
+/// Ruhezustand während der Freigabe verhindern oder wieder zulassen.
+#[tauri::command]
+pub fn share_keep_awake(share: State<'_, Share>, on: bool) {
+    if let Some(running) = share.running.lock().unwrap().as_mut() {
+        if on && running.awake.is_none() {
+            running.awake = Some(awake::KeepAwake::start());
+        } else if !on {
+            running.awake = None;
+        }
+    }
+}
+
+/// Adressmeldung für eigene Geräte einschalten (z. B. nach dem Koppeln des ersten Geräts).
+#[tauri::command]
+pub fn share_announce(app: AppHandle, share: State<'_, Share>, topic: String) -> Result<(), String> {
+    if !tunnel::valid_topic(&topic) {
+        return Err("Ungültiger Kanalname".into());
+    }
+    let (generation, slot) = match share.running.lock().unwrap().as_ref() {
+        Some(running) => (running.generation, running.topic.clone()),
+        None => return Ok(()),
+    };
+    let previous = slot.lock().unwrap().replace(topic.clone());
+    let url = share.status.lock().unwrap().url.clone();
+    let online = share.status.lock().unwrap().phase == "online";
+    // Ist der Tunnel schon online, sofort melden; sonst übernimmt das der Tunnel beim Verbinden.
+    if previous.is_none() && online {
+        if let Some(url) = url {
+            tunnel::announce(app, generation, topic, url);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]

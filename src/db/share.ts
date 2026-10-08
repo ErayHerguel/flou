@@ -1,23 +1,27 @@
 import type { Grant, Role } from '../features/collab/access';
 import { db, type Statement } from './driver';
 
-/** Eingeladene Person. Der Token ist der geheime Teil ihres Einladungslinks. */
+/** person: Gast mit Rechten pro Seite · device: eigenes Gerät (z. B. iPhone) mit vollem Zugriff */
+export type MemberKind = 'person' | 'device';
+
+/** Eingeladene Person oder eigenes Gerät. Der Token ist der geheime Teil des Links. */
 export interface Member {
   id: string;
   name: string;
   token: string;
   color: string;
   createdAt: number;
+  kind: MemberKind;
 }
 
 /** Gut unterscheidbare Farben für Cursor und Avatare. */
 export const MEMBER_COLORS = ['#e5484d', '#f76b15', '#ffc53d', '#30a46c', '#12a594', '#0090ff', '#6e56cf', '#d6409f'];
 
 export async function loadMembers(): Promise<Member[]> {
-  const rows = await db().select<{ id: string; name: string; token: string; color: string; created_at: number }>(
-    'SELECT id, name, token, color, created_at FROM share_members ORDER BY created_at',
+  const rows = await db().select<{ id: string; name: string; token: string; color: string; created_at: number; kind: MemberKind }>(
+    'SELECT id, name, token, color, created_at, kind FROM share_members ORDER BY created_at',
   );
-  return rows.map((r) => ({ id: r.id, name: r.name, token: r.token, color: r.color, createdAt: Number(r.created_at) }));
+  return rows.map((r) => ({ id: r.id, name: r.name, token: r.token, color: r.color, createdAt: Number(r.created_at), kind: r.kind }));
 }
 
 export async function loadGrants(): Promise<Grant[]> {
@@ -31,10 +35,15 @@ export function newToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Geheimer Kanalname, unter dem flou eigenen Geräten seine aktuelle Adresse meldet. */
+export function newTopic(): string {
+  return `flou-${newToken().slice(0, 40)}`;
+}
+
 export function insertMember(m: Member): Statement {
   return {
-    sql: 'INSERT INTO share_members (id, name, token, color, created_at) VALUES (?, ?, ?, ?, ?)',
-    params: [m.id, m.name, m.token, m.color, m.createdAt],
+    sql: 'INSERT INTO share_members (id, name, token, color, created_at, kind) VALUES (?, ?, ?, ?, ?, ?)',
+    params: [m.id, m.name, m.token, m.color, m.createdAt, m.kind],
   };
 }
 

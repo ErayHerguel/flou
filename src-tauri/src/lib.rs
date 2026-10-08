@@ -48,6 +48,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/006_share.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "devices",
+            sql: include_str!("../migrations/007_devices.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -120,7 +126,9 @@ pub fn run() {
             paths::app_paths,
             paths::reveal_dir,
             share::open_shared,
+            share::share_announce,
             share::share_close_member,
+            share::share_keep_awake,
             share::share_send,
             share::share_start,
             share::share_status,

@@ -71,13 +71,28 @@ function send(targets: number[], message: ServerMessage) {
 
 const memberOf = (memberId: string) => useHosting.getState().members.find((m) => m.id === memberId);
 
+const isDevice = (memberId: string) => memberOf(memberId)?.kind === 'device';
+
 function accessOf(memberId: string): Map<string, Access> {
   let access = accessCache.get(memberId);
   if (!access) {
-    access = accessMap(usePages.getState().pages, grantsOf(useHosting.getState().grants, memberId));
+    const pages = usePages.getState().pages;
+    // Eigene Geräte sehen und bearbeiten alles außerhalb des Papierkorbs.
+    access = isDevice(memberId)
+      ? new Map(Object.values(pages).filter((p) => p.deletedAt === null).map((p) => [p.id, 'edit' as const]))
+      : accessMap(pages, grantsOf(useHosting.getState().grants, memberId));
     accessCache.set(memberId, access);
   }
   return access;
+}
+
+/** Ziel einer neuen oder verschobenen Seite: oberste Ebene nur für eigene Geräte. */
+function requireParent(c: Connection, parentId: string | null) {
+  if (parentId === null) {
+    if (!isDevice(c.memberId)) throw new HubError('Kein Zugriff auf die oberste Ebene');
+    return;
+  }
+  requireAccess(c, parentId, 'edit');
 }
 
 function requireAccess(c: Connection, pageId: string, level: Access): Access {
@@ -341,15 +356,15 @@ async function handle(c: Connection, req: Request): Promise<unknown> {
       const { hostName } = useHosting.getState();
       const welcome: Welcome = {
         conn: c.conn,
-        me: { memberId: member.id, name: member.name, color: member.color },
+        me: { memberId: member.id, name: member.name, color: member.color, kind: member.kind },
         host: { name: hostName, color: HOST_COLOR },
         pages: visible,
       };
       return welcome;
     }
     case 'page.create': {
-      requireAccess(c, req.parentId, 'edit');
-      if (!canContain(pages[req.parentId]?.type, req.type)) throw new HubError('Hier kann nichts angelegt werden');
+      requireParent(c, req.parentId);
+      if (req.parentId !== null && !canContain(pages[req.parentId]?.type, req.type)) throw new HubError('Hier kann nichts angelegt werden');
       if (req.type === 'database') {
         const id = await useDatabases.getState().createDatabase(req.parentId);
         if (req.title) usePages.getState().update(id, { title: req.title });
@@ -369,7 +384,7 @@ async function handle(c: Connection, req: Request): Promise<unknown> {
       return null;
     case 'page.move':
       requireAccess(c, req.id, 'edit');
-      requireAccess(c, req.parentId, 'edit');
+      requireParent(c, req.parentId);
       await usePages.getState().move(req.id, req.parentId, req.index);
       return null;
     case 'page.trash':

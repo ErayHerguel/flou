@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { LAUNCHER_URL } from '../../../app.config';
 import type { CellValue, Property, View } from '../../../db/database';
 import type { PageMeta } from '../../../db/pages';
 import { buildChildIndex, type PageMap } from '../../../lib/tree';
@@ -15,6 +16,8 @@ import { connection, HostError } from './connection';
 import { guestDoc } from './docs';
 
 const TOKEN_KEY = 'flou-token';
+/** So viele erfolglose Versuche, dann sucht ein eigenes Gerät die neue Adresse über die Startseite. */
+const LAUNCHER_AFTER_ATTEMPTS = 4;
 
 export type GuestProblem = 'missing' | 'invalid' | 'unreachable';
 
@@ -33,8 +36,26 @@ export const useGuest = create<GuestState>(() => ({ me: null, host: null }));
 
 /* ---------- Anmeldung ---------- */
 
+/** Kanal der Startseite (nur bei eigenen Geräten, die über den festen Link kommen). */
+let topic: string | null = null;
+
 function readToken(): string | null {
   const match = /(?:^#|&)join=([0-9a-f]{64})/.exec(location.hash);
+  const fromLauncher = /(?:^#|&)topic=([A-Za-z0-9_-]{24,64})/.exec(location.hash);
+  if (fromLauncher) {
+    topic = fromLauncher[1];
+    try {
+      sessionStorage.setItem('flou-topic', topic);
+    } catch {
+      // nur für diese Sitzung nötig
+    }
+  } else {
+    try {
+      topic = sessionStorage.getItem('flou-topic');
+    } catch {
+      topic = null;
+    }
+  }
   if (match) {
     try {
       localStorage.setItem(TOKEN_KEY, match[1]);
@@ -74,6 +95,8 @@ async function signIn(): Promise<boolean> {
 const pendingPatches = new Map<string, { patch: Partial<PageMeta>; seq: number }>();
 let patchSeq = 0;
 
+const isDevice = () => useGuest.getState().me?.kind === 'device';
+
 function applyPages(upsert: GuestPage[], remove: string[], reset = false) {
   const pages: PageMap = reset ? {} : { ...usePages.getState().pages };
   const access: Record<string, Access> = reset ? {} : { ...(useAccess.getState().access ?? {}) };
@@ -86,7 +109,8 @@ function applyPages(upsert: GuestPage[], remove: string[], reset = false) {
     pages[page.id] = { ...meta, ...pendingPatches.get(page.id)?.patch };
     access[page.id] = level;
   }
-  useAccess.setState({ access });
+  // Eigene Geräte haben vollen Zugriff wie der Gastgeber selbst.
+  useAccess.setState({ access: isDevice() ? null : access });
   usePages.setState({ pages, children: buildChildIndex(pages) });
 }
 
@@ -123,11 +147,11 @@ function installPageActions() {
     load: async () => undefined,
 
     async create({ parentId = null, type = 'page', title = '', index }: CreateOptions = {}) {
-      if (!parentId) {
+      if (!parentId && !isDevice()) {
         toast('Neue Seiten kannst du nur innerhalb geteilter Seiten anlegen');
         throw new HostError('Keine oberste Ebene');
       }
-      if (!canEdit(parentId)) readOnly();
+      if (parentId && !canEdit(parentId)) readOnly();
       const id = await request<string>({ op: 'page.create', parentId, type, title, index: index ?? null }, 'Seite anlegen');
       await waitFor(() => Boolean(usePages.getState().pages[id]));
       return id;
@@ -151,8 +175,8 @@ function installPageActions() {
     },
 
     async move(id, parentId, index) {
-      if (!parentId) return void toast('Auf die oberste Ebene kann nur der Gastgeber verschieben');
-      if (!canEdit(id) || !canEdit(parentId)) readOnly();
+      if (!parentId && !isDevice()) return void toast('Auf die oberste Ebene kann nur der Gastgeber verschieben');
+      if (!canEdit(id) || (parentId && !canEdit(parentId))) readOnly();
       await request({ op: 'page.move', id, parentId, index }, 'Seite verschieben');
     },
 
@@ -389,7 +413,11 @@ async function start(): Promise<void> {
         .catch((err) => (initial ? reject(err) : console.error('Neu verbinden', err)));
     });
   });
-  connection.start(signIn);
+  // Eigenes Gerät über den festen Link: bleibt der Mac weg (z. B. neue Adresse nach Neustart),
+  // zurück zur Startseite, die die aktuelle Adresse findet.
+  connection.start(signIn, (attempt) => {
+    if (topic && token && attempt >= LAUNCHER_AFTER_ATTEMPTS) location.replace(`${LAUNCHER_URL}#d=${topic}.${token}`);
+  });
   await first;
 
   useCollab.setState({

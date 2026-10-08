@@ -7,6 +7,7 @@ import { Popover, type Anchor } from '../../components/Popover';
 import { useSaveStatus } from '../../db/saveQueue';
 import { GUEST } from '../../lib/mode';
 import { IS_MAC } from '../../lib/platform';
+import { useNarrow } from '../../lib/useNarrow';
 import { ConnectionIndicator } from '../collab/guest/GuestIdentity';
 import { PageShareButton } from '../collab/host/PageShare';
 import { PagePresence } from '../collab/presence';
@@ -22,11 +23,14 @@ const TRAFFIC_LIGHT_INSET = 84;
 
 export function TopBar({ pageId }: { pageId: string | null }) {
   const sidebarOpen = useUI((s) => s.sidebarOpen);
+  const narrow = useNarrow();
   const canBack = useUI((s) => s.back.length > 0);
   const canForward = useUI((s) => s.forward.length > 0);
   const pages = usePages((s) => s.pages);
   const page = pageId ? pages[pageId] : undefined;
-  const crumbs = page ? [...ancestorIds(pages, page.id), page.id] : [];
+  const path = page ? [...ancestorIds(pages, page.id), page.id] : [];
+  // Auf schmalen Bildschirmen nur die aktuelle Seite.
+  const crumbs = narrow ? path.slice(-1) : path;
   const [menu, setMenu] = useState<Anchor | null>(null);
   const favorite = useUI((s) => (pageId ? s.favorites.includes(pageId) : false));
   const isHome = useUI((s) => pageId !== null && s.homeId === pageId);
@@ -37,17 +41,23 @@ export function TopBar({ pageId }: { pageId: string | null }) {
     <header
       data-tauri-drag-region
       className="flex h-11 shrink-0 items-center gap-1 pr-3 print:hidden"
-      style={{ paddingLeft: sidebarOpen || !IS_MAC || GUEST ? 12 : TRAFFIC_LIGHT_INSET }}
+      style={{ paddingLeft: sidebarOpen || narrow || !IS_MAC || GUEST ? 12 : TRAFFIC_LIGHT_INSET }}
     >
-      {!sidebarOpen && (
-        <IconButton
-          icon={PanelLeft}
-          label={`Seitenleiste einblenden (${formatCombo('Mod+\\')})`}
-          onClick={() => useUI.getState().toggleSidebar()}
-        />
+      {narrow ? (
+        <IconButton icon={PanelLeft} label="Menü" onClick={() => useUI.getState().setDrawer(true)} />
+      ) : (
+        !sidebarOpen && (
+          <IconButton
+            icon={PanelLeft}
+            label={`Seitenleiste einblenden (${formatCombo('Mod+\\')})`}
+            onClick={() => useUI.getState().toggleSidebar()}
+          />
+        )
       )}
       <IconButton icon={ChevronLeft} label={`Zurück (${formatCombo('Mod+[')})`} disabled={!canBack} onClick={() => useUI.getState().goBack()} />
-      <IconButton icon={ChevronRight} label={`Vorwärts (${formatCombo('Mod+]')})`} disabled={!canForward} onClick={() => useUI.getState().goForward()} />
+      {!narrow && (
+        <IconButton icon={ChevronRight} label={`Vorwärts (${formatCombo('Mod+]')})`} disabled={!canForward} onClick={() => useUI.getState().goForward()} />
+      )}
 
       <nav className="ml-1 flex min-w-0 items-center text-sm" aria-label="Pfad">
         {crumbs.map((id, i) => (

@@ -9,6 +9,7 @@ import { usePages } from '../store/pages';
 import { useUI, type Theme } from '../store/ui';
 import { quitApp } from './lifecycle';
 import { GUEST } from '../lib/mode';
+import { useAccess } from './collab/sources';
 
 export type MenuSection = 'app' | 'file' | 'edit' | 'view' | 'go' | 'help';
 
@@ -355,6 +356,14 @@ export const actions: AppAction[] = [
     run: () => invoke('reveal_dir', { which: 'backups' }),
   },
   {
+    id: 'settings.open',
+    label: 'Einstellungen …',
+    group: 'Allgemein',
+    keys: 'Mod+,',
+    menu: 'app',
+    run: () => useUI.getState().setOverlay('settings'),
+  },
+  {
     id: 'update.check',
     label: 'Nach Updates suchen …',
     group: 'Allgemein',
@@ -422,7 +431,15 @@ const GUEST_ACTIONS = new Set([
   'shortcuts.open',
 ]);
 
-export const availableActions: AppAction[] = GUEST ? actions.filter((a) => GUEST_ACTIONS.has(a.id)) : actions;
+/** Eigene Geräte (z. B. das iPhone) dürfen zusätzlich Seiten auf oberster Ebene anlegen. */
+const DEVICE_ACTIONS = new Set([...GUEST_ACTIONS, 'page.new', 'page.newDatabase', 'page.newBoard']);
+
+/** Aktionen, die hier ausgeführt werden können (Gastmodus: abhängig vom Zugriff). */
+export function availableActions(): AppAction[] {
+  if (!GUEST) return actions;
+  const allowed = useAccess.getState().access === null ? DEVICE_ACTIONS : GUEST_ACTIONS;
+  return actions.filter((a) => allowed.has(a.id));
+}
 
 export function actionById(id: string): AppAction {
   const action = actions.find((a) => a.id === id);

@@ -43,6 +43,37 @@ const DOWNLOAD: Option<Download> = None;
 
 /// Bis die öffentliche Adresse steht, höchstens so lange warten.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
+/// ntfy.sh hält Nachrichten 12 Stunden vor; die Adresse wird deshalb regelmäßig erneut gemeldet.
+const REPUBLISH: Duration = Duration::from_secs(6 * 60 * 60);
+
+/// Kanalnamen für die Adressmeldung: zufällig und lang genug, dass niemand sie errät.
+pub(super) fn valid_topic(topic: &str) -> bool {
+    (24..=64).contains(&topic.len()) && topic.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+fn http_client() -> Result<reqwest::Client, String> {
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+    reqwest::Client::builder()
+        .user_agent(concat!("flou/", env!("CARGO_PKG_VERSION")))
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+/// Meldet die aktuelle öffentliche Adresse für eigene Geräte (nur die Adresse, kein Zugangsschlüssel).
+async fn publish_address(topic: &str, url: &str) -> Result<(), String> {
+    http_client()?
+        .post(format!("https://ntfy.sh/{topic}"))
+        .header("X-Title", "flou")
+        .body(url.to_string())
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
 
 fn bin_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(data_dir(app)?.join("bin"))
@@ -61,15 +92,8 @@ async fn ensure_binary(app: &AppHandle, downloading: impl FnOnce()) -> Result<Pa
     }
     let download = DOWNLOAD.ok_or("Teilen über das Internet ist auf diesem System nicht verfügbar")?;
     downloading();
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
     let url = format!("https://github.com/cloudflare/cloudflared/releases/download/{VERSION}/{}", download.file);
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("flou/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .map_err(|e| e.to_string())?;
-    let bytes = client
+    let bytes = http_client()?
         .get(&url)
         .send()
         .await
@@ -166,7 +190,7 @@ fn spawn(binary: &Path, config: &Path, port: u16) -> std::io::Result<Child> {
 }
 
 /// Baut den Tunnel auf und meldet den Fortschritt über den Freigabe-Status.
-pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>>>, generation: u64) {
+pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>>>, generation: u64, topic: Arc<Mutex<Option<String>>>) {
     let share = app.state::<Share>();
     let fail = |message: String| {
         share.update(&app, generation, |s| {
@@ -235,6 +259,10 @@ pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>
         if url.is_some() && registered && !online {
             online = true;
             share.update(&app, generation, |s| s.phase = "online");
+            let topic = topic.lock().unwrap().clone();
+            if let (Some(topic), Some(address)) = (topic, url.clone()) {
+                announce(app.clone(), generation, topic, address);
+            }
         }
         if line.contains(" ERR ") {
             last_error = line.split(" ERR ").nth(1).map(|s| s.trim().to_string());
@@ -245,9 +273,31 @@ pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>
     fail(format!("Die Verbindung ins Internet wurde unterbrochen{detail}."));
 }
 
+/// Meldet die Adresse sofort und danach regelmäßig, solange diese Freigabe läuft.
+pub(super) fn announce(app: AppHandle, generation: u64, topic: String, url: String) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            if !app.state::<Share>().is_current(generation) {
+                return;
+            }
+            if let Err(err) = publish_address(&topic, &url).await {
+                eprintln!("Adresse für eigene Geräte nicht gemeldet: {err}");
+            }
+            tokio::time::sleep(REPUBLISH).await;
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
-    use super::parse_url;
+    use super::{parse_url, valid_topic};
+
+    #[test]
+    fn accepts_only_long_random_topics() {
+        assert!(valid_topic("flou-3f9a8c7d6e5b4a3f2e1d0c9b"));
+        assert!(!valid_topic("kurz"));
+        assert!(!valid_topic("flou/../../admin-0123456789abcdef"));
+    }
 
     #[test]
     fn finds_quick_tunnel_url() {

@@ -297,3 +297,45 @@
 [data-db-readonly] .db-edit-click {
   pointer-events: none;
 }
+
+/* ---------- Schmale Bildschirme und Touch (iPhone) ---------- */
+@media (max-width: 767px) {
+  :root {
+    --text-title: 30px;
+    --text-title--line-height: 38px;
+  }
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+  #root {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Ab 16px zoomt Safari beim Antippen eines Eingabefelds nicht hinein (Titel behalten ihre Größe). */
+  input:not(.keep-size),
+  textarea:not(.keep-size),
+  select {
+    font-size: 16px !important;
+  }
+}
+.safe-area-y {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Ohne Maus gibt es kein Hover: versteckte Bedienelemente immer zeigen, den Block-Greifer ausblenden. */
+@media (hover: none) {
+  .touch-flex {
+    display: flex !important;
+  }
+  .touch-reveal {
+    opacity: 1 !important;
+  }
+  .block-handle {
+    display: none !important;
+  }
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

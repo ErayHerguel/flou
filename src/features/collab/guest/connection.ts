@@ -25,9 +25,12 @@ class Connection {
   private openers = new Set<() => void>();
   private attempt = 0;
   private reauth: (() => Promise<boolean>) | null = null;
+  private onLost: ((attempt: number) => void) | null = null;
 
-  start(reauth: () => Promise<boolean>) {
+  /** onLost: wird bei jedem erfolglosen Neuverbinden aufgerufen (z. B. um eine neue Adresse zu suchen). */
+  start(reauth: () => Promise<boolean>, onLost?: (attempt: number) => void) {
     this.reauth = reauth;
+    this.onLost = onLost ?? null;
     this.open();
   }
 
@@ -85,6 +88,7 @@ class Connection {
     }
     const delay = RETRY_MS[Math.min(this.attempt, RETRY_MS.length - 1)];
     this.attempt += 1;
+    this.onLost?.(this.attempt);
     setTimeout(() => this.open(), delay);
   }
 

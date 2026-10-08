@@ -17,6 +17,7 @@ import { CommentsDialog } from './features/history/CommentsDialog';
 import { confirmStopSharing, useHosting } from './features/collab/host/hosting';
 import { ShareDialog } from './features/collab/host/ShareDialog';
 import { JoinDialog } from './features/collab/JoinDialog';
+import { SettingsDialog } from './features/settings/SettingsDialog';
 import { VersionsDialog } from './features/history/VersionsDialog';
 import { runFirstStart } from './features/onboarding/firstRun';
 import { CommandPalette } from './features/palette/CommandPalette';
@@ -135,6 +136,7 @@ export function App() {
       {overlay === 'comments' && <CommentsDialog />}
       {overlay === 'share' && <ShareDialog />}
       {overlay === 'join' && <JoinDialog />}
+      {overlay === 'settings' && <SettingsDialog />}
       <ConfirmDialog />
       <Toasts />
       <UpdateBanner />

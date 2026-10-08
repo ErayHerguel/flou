@@ -116,7 +116,7 @@ export const TreeRow = memo(function TreeRow({ id, depth, drop, dimmed }: TreeRo
         )}
 
         {!renaming && (
-          <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex" onPointerDown={stop}>
+          <span className="touch-flex hidden shrink-0 items-center gap-0.5 group-hover:flex" onPointerDown={stop}>
             <button
               aria-label="Optionen"
               onClick={openMenu}

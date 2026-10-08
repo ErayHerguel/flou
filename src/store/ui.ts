@@ -9,7 +9,7 @@ export interface FocusRequest {
   pageId: string;
   target: FocusTarget;
 }
-export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | 'versions' | 'comments' | 'share' | 'join' | null;
+export type Overlay = 'palette' | 'search' | 'shortcuts' | 'trash' | 'versions' | 'comments' | 'share' | 'join' | 'settings' | null;
 
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
@@ -19,6 +19,8 @@ interface UIState {
   back: string[];
   forward: string[];
   sidebarOpen: boolean;
+  /** Seitenleiste als Ausklappmenü auf schmalen Bildschirmen (nicht gespeichert) */
+  drawerOpen: boolean;
   sidebarWidth: number;
   theme: Theme;
   overlay: Overlay;
@@ -33,6 +35,7 @@ interface UIState {
   goBack(): void;
   goForward(): void;
   toggleSidebar(): void;
+  setDrawer(open: boolean): void;
   setSidebarWidth(width: number): void;
   setTheme(theme: Theme): void;
   setOverlay(overlay: Overlay): void;
@@ -76,6 +79,7 @@ export const useUI = create<UIState>((set, get) => ({
   back: [],
   forward: [],
   sidebarOpen: true,
+  drawerOpen: false,
   sidebarWidth: 260,
   theme: 'system',
   overlay: null,
@@ -145,6 +149,10 @@ export const useUI = create<UIState>((set, get) => ({
     const sidebarOpen = !get().sidebarOpen;
     set({ sidebarOpen });
     persist('ui.sidebarOpen', String(sidebarOpen));
+  },
+
+  setDrawer(drawerOpen) {
+    set({ drawerOpen });
   },
 
   setSidebarWidth(width) {

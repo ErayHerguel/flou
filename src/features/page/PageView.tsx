@@ -34,7 +34,7 @@ export function PageView({ id }: { id: string }) {
   return (
     <div className="h-full overflow-y-auto" data-scroll-container>
       <Cover page={page} />
-      <div className={cx('mx-auto w-full px-14', isDatabase ? 'pb-24' : 'pb-[40vh]', width)}>
+      <div className={cx('mx-auto w-full px-5 md:px-14', isDatabase ? 'pb-24' : 'pb-[40vh]', width)}>
         <PageHeader page={page} />
         {isDatabase ? (
           <DatabaseView databaseId={id} />

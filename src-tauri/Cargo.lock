@@ -1276,7 +1276,7 @@ dependencies = [
 
 [[package]]
 name = "flou"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1299,6 +1299,7 @@ dependencies = [
  "tauri-plugin-sql",
  "tauri-plugin-updater",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

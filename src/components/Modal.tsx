@@ -32,7 +32,7 @@ export function Modal({ onClose, children, className, position = 'top' }: ModalP
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={cx('animate-pop-in overflow-hidden rounded-lg bg-surface shadow-popover', className)}>
+      <div className={cx('max-w-[calc(100vw-24px)] animate-pop-in overflow-hidden rounded-lg bg-surface shadow-popover', className)}>
         {children}
       </div>
     </div>,

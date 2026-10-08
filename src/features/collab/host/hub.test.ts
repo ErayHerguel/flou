@@ -44,14 +44,16 @@ async function until<T>(find: () => T | undefined, timeoutMs = 2000): Promise<T>
   }
 }
 
-function message(conn: number, data: unknown) {
-  handlers['share:message']({ payload: { conn, memberId: MEMBER, data: JSON.stringify(data) } });
+const DEVICE = 'd1';
+
+function message(conn: number, data: unknown, memberId = MEMBER) {
+  handlers['share:message']({ payload: { conn, memberId, data: JSON.stringify(data) } });
 }
 
 /** Schickt eine Anfrage als Gast und wartet auf die Antwort. */
-async function call<T>(conn: number, req: unknown): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
+async function call<T>(conn: number, req: unknown, memberId = MEMBER): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
   const id = nextId++;
-  message(conn, { t: 'req', id, req });
+  message(conn, { t: 'req', id, req }, memberId);
   const res = await until(() => sent.find((s) => s.message.t === 'res' && s.message.id === id)?.message);
   if (res.t !== 'res') throw new Error('keine Antwort');
   return res.ok ? { ok: true, value: res.value as T } : { ok: false, error: res.error };
@@ -70,7 +72,10 @@ beforeEach(async () => {
   await commit(saveContent(plan, { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Start' }] }] }, 'Start', [], 1));
   pages = { projekt, plan, privat, aufgaben };
   useHosting.setState({
-    members: [{ id: MEMBER, name: 'Mia', token: 'x'.repeat(64), color: '#e5484d', createdAt: 0 }],
+    members: [
+      { id: MEMBER, name: 'Mia', token: 'x'.repeat(64), color: '#e5484d', createdAt: 0, kind: 'person' },
+      { id: DEVICE, name: 'iPhone', token: 'y'.repeat(64), color: '#0090ff', createdAt: 0, kind: 'device' },
+    ],
     grants: [{ memberId: MEMBER, pageId: projekt, role: 'edit' }],
     hostName: 'Eray',
   });
@@ -172,6 +177,24 @@ describe('Gastgeber-Hub', () => {
 
     expect((await call(1, { op: 'db.call', databaseId: pages.aufgaben, method: 'setValue', args: [pages.privat, status.id, 'x'] })).ok).toBe(false);
     expect((await call(1, { op: 'db.call', databaseId: pages.aufgaben, method: 'updateView', args: [{ id: 'gibt-es-nicht', name: 'x', config: {} }] })).ok).toBe(false);
+  });
+
+  it('gibt eigenen Geräten den ganzen Workspace, auch die oberste Ebene', async () => {
+    handlers['share:open']({ payload: { conn: 2, memberId: DEVICE } });
+    const hello = await call<Welcome>(2, { op: 'hello' }, DEVICE);
+    if (!hello.ok) throw new Error(hello.error);
+    expect(hello.value.me.kind).toBe('device');
+    expect(hello.value.pages.map((p) => p.id).sort()).toEqual(Object.values(pages).sort());
+
+    const created = await call<string>(2, { op: 'page.create', parentId: null, type: 'page', title: 'Vom iPhone' }, DEVICE);
+    if (!created.ok) throw new Error(created.error);
+    expect(usePages.getState().pages[created.value]).toMatchObject({ parentId: null, title: 'Vom iPhone' });
+
+    await call(1, { op: 'hello' });
+    expect(await call(1, { op: 'page.create', parentId: null, type: 'page', title: 'Gast' })).toEqual({
+      ok: false,
+      error: 'Kein Zugriff auf die oberste Ebene',
+    });
   });
 
   it('findet in der Suche nur freigegebene Seiten', async () => {

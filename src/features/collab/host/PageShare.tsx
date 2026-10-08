@@ -1,5 +1,5 @@
 import { Copy, Users } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Popover, type Anchor } from '../../../components/Popover';
 import { pageTitle } from '../../../components/PageIcon';
 import { usePages } from '../../../store/pages';
@@ -35,7 +35,9 @@ export function PageShareButton({ pageId }: { pageId: string }) {
 
 function PageSharePanel({ pageId, onClose }: { pageId: string; onClose: () => void }) {
   const pages = usePages((s) => s.pages);
-  const members = useHosting((s) => s.members);
+  const allMembers = useHosting((s) => s.members);
+  // Eigene Geräte sehen ohnehin alles; hier geht es um Personen.
+  const members = useMemo(() => allMembers.filter((m) => m.kind === 'person'), [allMembers]);
   const grants = useHosting((s) => s.grants);
   const status = useHosting((s) => s.status);
   const live = useHosting((s) => s.live);

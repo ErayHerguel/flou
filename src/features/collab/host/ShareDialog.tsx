@@ -29,7 +29,7 @@ export async function copyInvite(status: ShareStatus, member: Member): Promise<v
   }
 }
 
-function StatusCard() {
+export function StatusCard() {
   const status = useHosting((s) => s.status);
   const live = useHosting((s) => s.live);
   const [busy, setBusy] = useState(false);
@@ -180,7 +180,8 @@ function MemberRow({ member }: { member: Member }) {
 }
 
 export function ShareDialog() {
-  const members = useHosting((s) => s.members);
+  const allMembers = useHosting((s) => s.members);
+  const members = useMemo(() => allMembers.filter((m) => m.kind === 'person'), [allMembers]);
   const hostName = useHosting((s) => s.hostName);
   const status = useHosting((s) => s.status);
   const [invitee, setInvitee] = useState('');

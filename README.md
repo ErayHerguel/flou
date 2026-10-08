@@ -9,6 +9,8 @@ Kein Konto, kein Cloud-Server, keine Telemetrie. Alle Daten liegen auf deinem Co
 - **Block-Editor**: jeder Block per Greifer verschiebbar (auch in Spalten, Toggles und Callouts); Absatz, Überschriften, Listen, To-dos, Toggle, Zitat, Callout, Code mit Syntax-Highlighting, Trenner, Tabellen, 2/3 Spalten, Bilder mit Unterschrift, Dateianhänge (Audio/Video spielen direkt), Unterseiten, eingebettete Datenbanken
 - **Boards** wie in FigJam (`⌥⌘B` oder `/board`): unendliche Fläche mit Sticky Notes, Formen, Pfeilen, Freihand, Bildern; eingebettet in Seiten mit Vorschau; Export als PNG/SVG und `.excalidraw` (basiert auf Excalidraw, MIT)
 - **Zusammenarbeiten** (Seitenleiste „Teilen“): Personen per Link zu einzelnen Seiten, Boards oder Datenbanken einladen, mit Lese- oder Schreibrecht. Gemeinsames Bearbeiten live mit Cursorn, im Browser oder in der eigenen flou-App. Dein Computer ist der Server (siehe unten)
+- **flou auf dem iPhone** (Einstellungen → Meine Geräte → „iPhone verbinden“): QR-Code scannen, zum Home-Bildschirm hinzufügen, fertig. Der ganze Workspace live, ohne App Store, solange flou auf dem Computer läuft
+- **Einstellungen** (`⌘,`): Design, Teilen, Geräte, Daten und Backups, Updates
 - **Kommentare** an Textstellen (`⇧⌘M`) und **Versionsverlauf** je Seite (eine Version je 10 Minuten, die letzten 50)
 - **Slash-Menü** (`/`) mit Fuzzy-Suche, **Markdown-Shortcuts** beim Tippen, schwebende Formatierungsleiste
 - **Seitenlinks** mit `[[` und Backlinks am Seitenende
@@ -114,7 +116,7 @@ git commit -am "Version 1.0.1" && git tag v1.0.1 && git push && git push --tags
 ├── flou.db          SQLite-Datenbank (WAL-Modus): Seiten, Inhalte, Datenbanken, Einstellungen
 ├── flou.db-wal/-shm Schreibprotokoll von SQLite, gehört zur Datenbank
 ├── assets/          Bilder und Anhänge, benannt nach ihrem Inhalts-Hash
-├── backups/         tägliche Backups, je ein Ordner pro Tag
+├── backups/         tägliche Backups, je ein Ordner pro Tag (höchstens 7)
 └── bin/             cloudflared, sobald du zum ersten Mal teilst
 ```
 
@@ -209,6 +211,16 @@ So funktioniert es:
 - Die Adresse ist bei jedem Start eine neue (Eigenschaft der Quick Tunnels). Solange flou geöffnet ist und das Teilen läuft, können Eingeladene mitarbeiten. Neue Links bekommst du im Teilen-Dialog.
 - Einladungslinks enthalten einen geheimen Schlüssel (256 Bit) hinter `#join=`; er wird nicht an Server übertragen, nur gegen ein Sitzungs-Cookie getauscht. „Entfernen“ macht den Link ungültig und trennt die Person sofort.
 
+## flou auf dem iPhone
+
+1. `⌘,` → **Meine Geräte** → **iPhone verbinden**. flou startet das Teilen und zeigt einen QR-Code.
+2. Mit der iPhone-Kamera scannen, in Safari **Teilen → „Zum Home-Bildschirm“**.
+3. Fertig: Das Symbol öffnet deinen kompletten Workspace (alle Seiten, Boards, Datenbanken), live abgeglichen mit dem Computer. Eigene Geräte dürfen alles, auch Seiten auf oberster Ebene anlegen.
+
+So funktioniert es: Das iPhone nutzt flou im Browser, eine App aus dem App Store ist nicht nötig (die gäbe es nur mit kostenpflichtigem Apple-Entwicklerkonto). Weil sich die Tunnel-Adresse bei jedem Start ändert, öffnet das Symbol zuerst eine kleine Startseite auf der flou-Website (`/app/`). Sie fragt beim kostenlosen Dienst [ntfy.sh](https://ntfy.sh) unter einem geheimen Kanalnamen die aktuelle Adresse ab, prüft, ob der Computer erreichbar ist, und leitet weiter. Bei ntfy.sh liegt nur die Adresse, nie der Zugangsschlüssel; Kanal und Schlüssel stehen im Fragment (`#…`) des Links, das Browser nicht an Server senden. Geräte lassen sich unter „Meine Geräte“ jederzeit entfernen.
+
+Damit das iPhone immer verbunden ist: unter **Teilen** „Beim Start von flou automatisch teilen“ und „Computer wach halten, solange geteilt wird“ einschalten. Ohne laufenden Computer (oder mit zugeklapptem Laptop) zeigt das iPhone „Computer nicht erreichbar“ und verbindet sich von selbst, sobald er wieder da ist.
+
 ## Formeln
 
 Formel-Properties rechnen pro Eintrag, z. B. `prop("Preis") * prop("Menge")` oder `if(prop("Status") == "Erledigt", "✓", "")`. Verfügbar: `+ - * / % ^`, Vergleiche, `&& || !`, sowie `if, concat, length, lower, upper, contains, empty, round, floor, ceil, abs, sqrt, min, max, toNumber, format, today, dateAdd, dateBetween`.
@@ -221,7 +233,7 @@ Formel-Properties rechnen pro Eintrag, z. B. `prop("Preis") * prop("Menge")` ode
 
 ## Datenschutz und Netzwerk
 
-flou macht zur Laufzeit keine Netzwerkanfragen außer der Update-Prüfung: Beim Start fragt die App einmal `latest.json` des neuesten GitHub-Releases ab (nur Versionsnummer, keine Nutzerdaten). Abschaltbar über die Befehlspalette („Automatische Update-Suche an/aus“). Nur wenn du ausdrücklich „Teilen starten“ wählst, lädt flou einmalig cloudflared von GitHub und baut den Tunnel zu Cloudflare auf; beim Beenden des Teilens oder der App wird er geschlossen. Die Content-Security-Policy erlaubt nur lokale Ressourcen. Externe Bilder in eingefügtem HTML werden nicht übernommen, Schriften sind eingebunden. Links öffnen sich nur auf ausdrücklichen ⌘-Klick im Standardbrowser.
+flou macht zur Laufzeit keine Netzwerkanfragen außer der Update-Prüfung: Beim Start fragt die App einmal `latest.json` des neuesten GitHub-Releases ab (nur Versionsnummer, keine Nutzerdaten). Abschaltbar über die Befehlspalette („Automatische Update-Suche an/aus“). Nur wenn du ausdrücklich „Teilen starten“ wählst, lädt flou einmalig cloudflared von GitHub und baut den Tunnel zu Cloudflare auf; beim Beenden des Teilens oder der App wird er geschlossen. Gibt es gekoppelte eigene Geräte, meldet flou während des Teilens zusätzlich die aktuelle Tunnel-Adresse an ntfy.sh (siehe „flou auf dem iPhone“). Die Content-Security-Policy erlaubt nur lokale Ressourcen. Externe Bilder in eingefügtem HTML werden nicht übernommen, Schriften sind eingebunden. Links öffnen sich nur auf ausdrücklichen ⌘-Klick im Standardbrowser.
 
 ## Lizenzen der Abhängigkeiten
 

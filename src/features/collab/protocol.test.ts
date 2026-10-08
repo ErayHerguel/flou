@@ -24,6 +24,11 @@ describe('Nachrichten von Gästen', () => {
     expect(parse({ t: 'unbekannt' })).toBeNull();
   });
 
+  it('erlaubt die oberste Ebene als Ziel (Rechte prüft der Hub)', () => {
+    expect(parse({ t: 'req', id: 3, req: { op: 'page.create', parentId: null, type: 'board' } })).not.toBeNull();
+    expect(parse({ t: 'req', id: 4, req: { op: 'page.move', id: 'p1', parentId: null, index: 0 } })).not.toBeNull();
+  });
+
   it('setzt Standardwerte für optionale Felder', () => {
     expect(parse({ t: 'req', id: 2, req: { op: 'page.create', parentId: 'p1', type: 'page' } })).toEqual({
       t: 'req',

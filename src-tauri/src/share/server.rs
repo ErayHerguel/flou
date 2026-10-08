@@ -31,6 +31,7 @@ type Shared = State<Arc<Hub>>;
 
 pub(super) fn router(hub: Arc<Hub>) -> Router {
     Router::new()
+        .route("/api/ping", get(ping))
         .route("/api/session", post(session))
         .route("/api/ws", get(socket))
         .route("/api/upload", post(upload).layer(DefaultBodyLimit::max(MAX_UPLOAD)))
@@ -81,6 +82,14 @@ async fn db_pool(hub: &Hub) -> Result<sqlx::SqlitePool, Response> {
         .await
         .cloned()
         .map_err(|e| error(StatusCode::SERVICE_UNAVAILABLE, &e))
+}
+
+/// Erreichbarkeit für die Startseite eigener Geräte (läuft auf einer anderen Adresse, daher CORS).
+async fn ping() -> Response {
+    let mut response = (StatusCode::OK, "flou").into_response();
+    response.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+    response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
 }
 
 #[derive(Deserialize)]
@@ -211,7 +220,11 @@ async fn upload(State(hub): Shared, headers: HeaderMap, Query(query): Query<Uplo
         Ok(pool) => pool,
         Err(response) => return response,
     };
-    let can_edit = sqlx::query_scalar::<_, i64>("SELECT count(*) FROM share_grants WHERE member_id = ? AND role = 'edit'")
+    // Eigene Geräte dürfen alles, Gäste brauchen irgendwo Schreibrecht.
+    let can_edit = sqlx::query_scalar::<_, i64>(
+        "SELECT (SELECT count(*) FROM share_members WHERE id = ?1 AND kind = 'device')
+              + (SELECT count(*) FROM share_grants WHERE member_id = ?1 AND role = 'edit')",
+    )
         .bind(&member_id)
         .fetch_one(&pool)
         .await

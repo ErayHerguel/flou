@@ -11,10 +11,13 @@ import {
   loadMembers,
   MEMBER_COLORS,
   newToken,
+  newTopic,
   renameMember,
   setGrant,
   type Member,
+  type MemberKind,
 } from '../../../db/share';
+import { LAUNCHER_URL } from '../../../app.config';
 import { newId } from '../../../lib/ids';
 import { confirmDialog } from '../../../store/confirm';
 import { reportError } from '../../../store/toast';
@@ -41,14 +44,22 @@ interface HostingState {
   members: Member[];
   grants: Grant[];
   hostName: string;
+  /** Beim Start der App automatisch teilen */
+  autostart: boolean;
+  /** Kein Ruhezustand, solange geteilt wird */
+  keepAwake: boolean;
+  /** Geheimer Kanal für die Adressmeldung an eigene Geräte (wird beim ersten Gerät angelegt) */
+  topic: string | null;
   hydrate(settings: Record<string, string>): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
-  invite(name: string): Promise<Member>;
+  invite(name: string, kind?: MemberKind): Promise<Member>;
   removeMember(id: string): Promise<void>;
   renameMember(id: string, name: string): void;
   setRole(memberId: string, pageId: string, role: Role | null): Promise<void>;
   setHostName(name: string): void;
+  setAutostart(on: boolean): void;
+  setKeepAwake(on: boolean): void;
 }
 
 /** Einladungslink einer Person; erst verfügbar, wenn der Tunnel steht. */
@@ -56,17 +67,41 @@ export function inviteLink(status: ShareStatus, member: Member): string | null {
   return status.url ? `${status.url}/#join=${member.token}` : null;
 }
 
+/**
+ * Fester Link eines eigenen Geräts: die Startseite auf der flou-Website fragt die aktuelle Adresse
+ * unter dem geheimen Kanal ab und leitet weiter. Kanal und Schlüssel stehen nur im Fragment (#),
+ * das nie an einen Server geht.
+ */
+export function deviceLink(topic: string, member: Member): string {
+  return `${LAUNCHER_URL}#d=${topic}.${member.token}`;
+}
+
+const persistSetting = (key: string, value: string) => schedule(`setting:${key}`, () => [setSetting(key, value)]);
+const hasDevice = () => useHosting.getState().members.some((m) => m.kind === 'device');
+
 export const useHosting = create<HostingState>((set, get) => ({
   status: OFF,
   live: false,
   members: [],
   grants: [],
   hostName: 'Gastgeber',
+  autostart: false,
+  keepAwake: true,
+  topic: null,
 
   async hydrate(settings) {
     const [members, grants, status] = await Promise.all([loadMembers(), loadGrants(), invoke<ShareStatus>('share_status')]);
-    set({ members, grants, status, hostName: settings['share.name'] || 'Gastgeber' });
+    set({
+      members,
+      grants,
+      status,
+      hostName: settings['share.name'] || 'Gastgeber',
+      autostart: settings['share.autostart'] === 'true',
+      keepAwake: settings['share.keepAwake'] !== 'false',
+      topic: settings['share.topic'] || null,
+    });
     await listen<ShareStatus>('share:status', (event) => set({ status: event.payload }));
+    if (get().autostart) void get().start();
   },
 
   async start() {
@@ -75,7 +110,9 @@ export const useHosting = create<HostingState>((set, get) => ({
       await flush();
       await startHub();
       set({ live: true });
-      set({ status: await invoke<ShareStatus>('share_start') });
+      const { topic, keepAwake } = get();
+      // Die Adresse wird nur gemeldet, wenn es eigene Geräte gibt.
+      set({ status: await invoke<ShareStatus>('share_start', { topic: hasDevice() ? topic : null, keepAwake }) });
     } catch (err) {
       await get().stop();
       reportError('Teilen konnte nicht gestartet werden', err);
@@ -88,17 +125,25 @@ export const useHosting = create<HostingState>((set, get) => ({
     set({ live: false, status: OFF });
   },
 
-  async invite(name) {
+  async invite(name, kind = 'person') {
     const { members } = get();
     const member: Member = {
       id: newId(),
-      name: name.trim() || 'Gast',
+      name: name.trim() || (kind === 'device' ? 'iPhone' : 'Gast'),
       token: newToken(),
       color: MEMBER_COLORS[members.length % MEMBER_COLORS.length],
       createdAt: Date.now(),
+      kind,
     };
-    await commit([insertMember(member)]);
-    set({ members: [...members, member] });
+    const statements = [insertMember(member)];
+    let { topic } = get();
+    if (kind === 'device' && !topic) {
+      topic = newTopic();
+      statements.push(setSetting('share.topic', topic));
+    }
+    await commit(statements);
+    set({ members: [...members, member], topic });
+    if (kind === 'device' && topic && get().live) await invoke('share_announce', { topic }).catch(() => undefined);
     return member;
   },
 
@@ -128,6 +173,17 @@ export const useHosting = create<HostingState>((set, get) => ({
   setHostName(name) {
     set({ hostName: name });
     schedule('setting:share.name', () => [setSetting('share.name', get().hostName.trim() || 'Gastgeber')]);
+  },
+
+  setAutostart(on) {
+    set({ autostart: on });
+    persistSetting('share.autostart', String(on));
+  },
+
+  setKeepAwake(on) {
+    set({ keepAwake: on });
+    persistSetting('share.keepAwake', String(on));
+    if (get().live) void invoke('share_keep_awake', { on }).catch(() => undefined);
   },
 }));
 

@@ -23,7 +23,8 @@ export interface Person {
 
 export interface Welcome {
   conn: number;
-  me: { memberId: string; name: string; color: string };
+  /** device: eigenes Gerät mit vollem Zugriff */
+  me: { memberId: string; name: string; color: string; kind: 'person' | 'device' };
   host: { name: string; color: string };
   pages: GuestPage[];
 }
@@ -66,9 +67,9 @@ export type DbMethod = (typeof DB_METHODS)[number];
 
 export type Request =
   | { op: 'hello' }
-  | { op: 'page.create'; parentId: string; type: PageType; title: string; index: number | null }
+  | { op: 'page.create'; parentId: string | null; type: PageType; title: string; index: number | null }
   | { op: 'page.update'; id: string; patch: PagePatch }
-  | { op: 'page.move'; id: string; parentId: string; index: number }
+  | { op: 'page.move'; id: string; parentId: string | null; index: number }
   | { op: 'page.trash'; id: string }
   | { op: 'doc.open'; pageId: string; clientId: number }
   | { op: 'board.open'; pageId: string; subscribe: boolean }
@@ -177,7 +178,7 @@ function parseRequest(v: unknown): Request | null {
     case 'hello':
       return { op: 'hello' };
     case 'page.create':
-      if (!isId(v.parentId) || !PAGE_TYPES.includes(v.type as PageType)) return null;
+      if (!(v.parentId === null || isId(v.parentId)) || !PAGE_TYPES.includes(v.type as PageType)) return null;
       return {
         op: 'page.create',
         parentId: v.parentId,
@@ -188,7 +189,9 @@ function parseRequest(v: unknown): Request | null {
     case 'page.update':
       return isId(v.id) && isPagePatch(v.patch) ? { op: 'page.update', id: v.id, patch: v.patch } : null;
     case 'page.move':
-      return isId(v.id) && isId(v.parentId) && isIndex(v.index) ? { op: 'page.move', id: v.id, parentId: v.parentId, index: v.index } : null;
+      return isId(v.id) && (v.parentId === null || isId(v.parentId)) && isIndex(v.index)
+        ? { op: 'page.move', id: v.id, parentId: v.parentId, index: v.index }
+        : null;
     case 'page.trash':
       return isId(v.id) ? { op: 'page.trash', id: v.id } : null;
     case 'doc.open':
