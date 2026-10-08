@@ -2,6 +2,14 @@
 // Aufruf: npm run licenses
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+
+/** Pakete ohne Lizenzfeld: MIT anhand der mitgelieferten Lizenzdatei erkennen. */
+function licenseFromFile(dir) {
+  const file = readdirSync(dir).find((f) => /^licen[cs]e/i.test(f));
+  if (!file) return 'UNBEKANNT';
+  const text = readFileSync(join(dir, file), 'utf8');
+  return /Permission is hereby granted, free of charge/i.test(text) ? 'MIT' : 'UNBEKANNT';
+}
 import { join } from 'node:path';
 
 const ALLOWED = ['MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'MPL-2.0', '0BSD', 'Zlib', 'Unicode-3.0', 'Unicode-DFS-2016', 'CC0-1.0', 'Unlicense', 'BSL-1.0'];
@@ -35,13 +43,22 @@ function shippedMarker(marker) {
 }
 
 // npm: nur installierte Produktionsabhängigkeiten (das, was im App-Bundle landet)
-const paths = execSync('npm ls --omit=dev --all --parseable', { encoding: 'utf8' })
+/** npm ls meldet bei Überschreibungen (overrides) einen Fehlercode; die Liste ist trotzdem vollständig. */
+function npmList() {
+  try {
+    return execSync('npm ls --omit=dev --all --parseable', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch (err) {
+    if (typeof err.stdout === 'string' && err.stdout) return err.stdout;
+    throw err;
+  }
+}
+const paths = npmList()
   .split('\n')
   .filter((p) => p.includes('node_modules'));
 const seen = new Map();
 for (const dir of paths) {
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-  const license = typeof pkg.license === 'string' ? pkg.license : (pkg.license?.type ?? 'UNBEKANNT');
+  const license = typeof pkg.license === 'string' ? pkg.license : (pkg.license?.type ?? licenseFromFile(dir));
   seen.set(`${pkg.name}@${pkg.version}`, license);
 }
 for (const [name, license] of seen) {
