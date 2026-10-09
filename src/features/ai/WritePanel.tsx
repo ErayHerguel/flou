@@ -28,7 +28,7 @@ export function WritePanel() {
   if (!session || session.status === 'preparing') return null;
   const busy = session.status === 'running';
   const empty = session.status === 'done' && isEmptyAnswer(session.text);
-  const primaryLabel = session.target === 'replace' ? 'Ersetzen' : 'Einfügen';
+  const primaryLabel = session.target === 'replace' ? 'Ersetzen' : session.target === 'below' ? 'Als Notiz darunter' : 'Einfügen';
 
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">

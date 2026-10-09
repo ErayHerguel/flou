@@ -224,7 +224,7 @@ export function TableMenu({ editor }: { editor: Editor }) {
 }
 
 /** Aktionen der Schreibhilfe für die Auswahl, plus eigene Anweisung. */
-function AiMenu({ onPick, onCancel }: { onPick: (action: (typeof REWRITE_ACTIONS)[number]['id'] | 'custom', instruction?: string) => void; onCancel: () => void }) {
+function AiMenu({ onPick, onCancel }: { onPick: (action: (typeof REWRITE_ACTIONS)[number]['id'] | 'custom' | 'explain', instruction?: string) => void; onCancel: () => void }) {
   const [instruction, setInstruction] = useState('');
   return (
     <div className="flex w-[300px] flex-col gap-1 p-0.5">
@@ -246,6 +246,13 @@ function AiMenu({ onPick, onCancel }: { onPick: (action: (typeof REWRITE_ACTIONS
         className="h-8 rounded-md bg-bg px-2 text-sm outline-none placeholder:text-faint"
       />
       <div className="grid grid-cols-2 gap-0.5">
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick('explain')}
+          className="h-7 rounded-md px-2 text-left text-sm text-muted hover:bg-hover hover:text-text"
+        >
+          Erklären
+        </button>
         {REWRITE_ACTIONS.map((a) => (
           <button
             key={a.id}

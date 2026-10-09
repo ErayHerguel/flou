@@ -1,4 +1,7 @@
-import { ChevronLeft, ChevronRight, Copy, CopyPlus, History, LayoutTemplate, House, MessageSquare, MoreHorizontal, MoveHorizontal, PanelLeft, Printer, Star, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, CopyPlus, History, LayoutTemplate, House, MessageSquare, MoreHorizontal, MoveHorizontal, PanelLeft, Printer, Sparkles, Star, Trash2 } from 'lucide-react';
+import { useAiReady } from '../ai/store';
+import { openAiBar } from '../ai/edit/session';
+import { suggestTitle } from '../ai/title';
 import { Fragment, useCallback, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { MenuList } from '../../components/MenuList';
@@ -37,6 +40,7 @@ export function TopBar({ pageId }: { pageId: string | null }) {
   const isHome = useUI((s) => pageId !== null && s.homeId === pageId);
   const closeMenu = useCallback(() => setMenu(null), []);
   const editable = useCanEdit(pageId);
+  const aiReady = useAiReady();
 
   return (
     <header
@@ -78,6 +82,15 @@ export function TopBar({ pageId }: { pageId: string | null }) {
       <div data-tauri-drag-region className="h-full flex-1" />
       {GUEST ? <ConnectionIndicator /> : <SaveIndicator />}
       <PagePresence />
+      {page && aiReady && editable && (
+        <button
+          title={`Mit KI bearbeiten (${formatCombo('Mod+J')})`}
+          onClick={() => openAiBar()}
+          className="flex h-7 items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-hover"
+        >
+          <Sparkles size={15} /> KI
+        </button>
+      )}
       {page && !GUEST && <PageShareButton pageId={page.id} />}
       {page && (
         <button
@@ -129,6 +142,9 @@ export function TopBar({ pageId }: { pageId: string | null }) {
                     { label: 'Duplizieren', icon: CopyPlus, onSelect: () => void duplicateAndOpen(page.id) },
                     { label: 'Als Vorlage speichern', icon: LayoutTemplate, onSelect: () => void saveAsTemplate(page.id) },
                   ]),
+              ...(aiReady && editable
+                ? [{ label: 'KI: Titel und Icon vorschlagen', icon: Sparkles, onSelect: () => void suggestTitle(page.id) }]
+                : []),
               ...(page.type === 'page' && !GUEST
                 ? [{ label: 'Versionsverlauf …', icon: History, onSelect: () => useUI.getState().setOverlay('versions') }]
                 : []),

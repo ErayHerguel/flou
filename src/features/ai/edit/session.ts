@@ -14,6 +14,7 @@ import { normalizePlan } from '../board/plan';
 import { AiCancelled, askAi, costNote, type AiResult } from '../client';
 import { toAiMarkdown } from '../markdown';
 import { applyPageOps } from './applyPage';
+import { discardWrite } from '../writeSession';
 import {
   buildModel,
   describeBoard,
@@ -28,7 +29,9 @@ import {
 } from './boardModel';
 import { clusterNotes, freeOrigin } from './cluster';
 import { applyOps, describeChanges, pageBlocks, serializeBlocks, validOps, type PageChange, type PageEditPlan, type PageOp } from './pageModel';
-import { boardEditRequest, pageEditRequest, type Attachment } from './requests';
+import { boardEditRequest, databaseEditRequest, pageEditRequest, type Attachment } from './requests';
+import { describeDatabase, planDatabase, type DbApply, type DbChange, type DbEditPlan, type DbSnapshot } from './dbModel';
+import { useDatabases } from '../../../store/databases';
 
 /**
  * Die KI-Leiste: eine Anweisung (plus angehängte PDF oder Seite) für die geöffnete Seite oder das
@@ -37,7 +40,7 @@ import { boardEditRequest, pageEditRequest, type Attachment } from './requests';
 
 export interface Preview {
   summary: string;
-  changes: (PageChange | BoardChange)[];
+  changes: (PageChange | BoardChange | DbChange)[];
   /** Neuer Board-Inhalt, z. B. „Matrix mit 5 Zeilen“ */
   created: string | null;
   cost: number;
@@ -70,12 +73,14 @@ export const useAiBar = create<BarState>(() => ({
 
 type Pending =
   | { kind: 'page'; pageId: string; snapshot: PMNode; ops: PageOp[]; plan: PageEditPlan; newPage: boolean }
-  | { kind: 'board'; pageId: string; model: BoardModel; elements: BoardEl[]; ops: BoardOp[]; plan: BoardEditPlan; created: Skeleton[] };
+  | { kind: 'board'; pageId: string; model: BoardModel; elements: BoardEl[]; ops: BoardOp[]; plan: BoardEditPlan; created: Skeleton[] }
+  | { kind: 'database'; pageId: string; apply: DbApply; plan: DbEditPlan };
 
 let pending: Pending | null = null;
 let controller: AbortController | null = null;
 
 export function openAiBar(preset: Partial<Pick<BarState, 'instruction' | 'attachments' | 'newPage'>> = {}): void {
+  discardWrite();
   controller?.abort();
   pending = null;
   useAiBar.setState({ open: true, status: 'idle', error: null, preview: null, progress: 0, instruction: '', attachments: [], newPage: false, ...preset });
@@ -118,7 +123,10 @@ export async function runAiBar(): Promise<void> {
   if (!page) return;
   const state = useAiBar.getState();
   const board = page.type === 'board';
-  const instruction = state.instruction.trim() || defaultInstruction(board, state.attachments);
+  const database = page.type === 'database';
+  const instruction =
+    state.instruction.trim() ||
+    (database && state.attachments.length ? 'Lege aus den Quellen passende Einträge an.' : defaultInstruction(board, state.attachments));
   if (!instruction) return;
   const previous = pending?.pageId === page.id ? pending : null;
   controller?.abort();
@@ -127,7 +135,8 @@ export async function runAiBar(): Promise<void> {
   useAiBar.setState({ status: 'running', error: null, progress: 0 });
   const onText = (_d: string, full: string) => useAiBar.setState({ progress: full.length });
   try {
-    if (board) await runBoard(page.id, instruction, state.attachments, previous?.kind === 'board' ? previous.plan : undefined, abort.signal, onText);
+    if (database) await runDatabase(page.id, instruction, state.attachments, previous?.kind === 'database' ? previous.plan : undefined, abort.signal, onText);
+    else if (board) await runBoard(page.id, instruction, state.attachments, previous?.kind === 'board' ? previous.plan : undefined, abort.signal, onText);
     else await runPage(page.id, instruction, state.attachments, state.newPage, previous?.kind === 'page' ? previous.plan : undefined, abort.signal, onText);
   } catch (err) {
     if (err instanceof AiCancelled) return;
@@ -154,10 +163,11 @@ async function runPage(
   onText: (d: string, full: string) => void,
 ): Promise<void> {
   const editor = getActiveEditor();
-  if (!editor) throw new Error('Die Seite ist nicht geöffnet.');
-  if (!newPage && !editor.isEditable) throw new Error('Diese Seite darfst du nicht bearbeiten.');
-  const snapshot = editor.state.doc;
-  const blocks = pageBlocks(newPage ? { type: 'doc', content: [] } : (snapshot.toJSON() as JSONContent));
+  if (!editor && !newPage) throw new Error('Die Seite ist nicht geöffnet.');
+  if (editor && !newPage && !editor.isEditable) throw new Error('Diese Seite darfst du nicht bearbeiten.');
+  // Für neue Seiten (auch vom Board aus) reicht ein leerer Stand.
+  const snapshot = editor?.state.doc ?? (null as unknown as PMNode);
+  const blocks = pageBlocks(newPage || !snapshot ? { type: 'doc', content: [] } : (snapshot.toJSON() as JSONContent));
   const blocksText = serializeBlocks(blocks);
   const request = pageEditRequest({
     pageTitle: usePages.getState().pages[pageId]?.title || 'Ohne Titel',
@@ -234,6 +244,74 @@ async function runBoard(
   });
 }
 
+const titleOf = (id: string) => usePages.getState().pages[id]?.title ?? '';
+
+function databaseSnapshot(databaseId: string): DbSnapshot {
+  const data = useDatabases.getState().data[databaseId];
+  if (!data) throw new Error('Die Datenbank ist noch nicht geladen.');
+  const rowIds = (usePages.getState().children.get(databaseId) ?? []).filter((id) => usePages.getState().pages[id]?.deletedAt === null);
+  return {
+    properties: [...data.properties].sort((a, b) => a.sortOrder - b.sortOrder),
+    rows: rowIds.map((id) => ({ id, title: titleOf(id), values: data.values[id] ?? {} })),
+  };
+}
+
+async function runDatabase(
+  pageId: string,
+  instruction: string,
+  attachments: Attachment[],
+  previous: DbEditPlan | undefined,
+  signal: AbortSignal,
+  onText: (d: string, full: string) => void,
+): Promise<void> {
+  if (!useDatabases.getState().data[pageId]) await useDatabases.getState().load(pageId);
+  const snapshot = databaseSnapshot(pageId);
+  const request = databaseEditRequest({
+    tableText: describeDatabase(snapshot, titleOf),
+    title: titleOf(pageId) || 'Datenbank',
+    instruction,
+    attachments,
+    previous,
+  });
+  const result = await askAi(request, { signal, onText });
+  if (!result) return void useAiBar.setState({ status: pending ? 'preview' : 'idle' });
+  const plan = parse<DbEditPlan>(result);
+  const apply = planDatabase(plan, snapshot, titleOf);
+  if (!apply.changes.length) throw new Error(plan.summary ? `Keine Änderung: ${plan.summary}` : 'Claude hat nichts geändert. Formulier die Anweisung anders.');
+  pending = { kind: 'database', pageId, apply, plan };
+  const added = apply.add.length;
+  const changed = apply.update.length;
+  useAiBar.setState({
+    status: 'preview',
+    instruction: '',
+    preview: {
+      summary: plan.summary,
+      changes: apply.changes,
+      created: [added ? `${added} neue Einträge` : '', changed ? `${changed} Einträge geändert` : ''].filter(Boolean).join(' · '),
+      cost: result.cost,
+      note: costNote(result),
+    },
+  });
+}
+
+async function applyDatabase(databaseId: string, apply: DbApply): Promise<void> {
+  const store = useDatabases.getState();
+  const data = store.data[databaseId];
+  if (!data) throw new Error('Die Datenbank ist nicht geladen.');
+  for (const [propertyId, options] of apply.options) {
+    const property = useDatabases.getState().data[databaseId]?.properties.find((p) => p.id === propertyId);
+    if (property) store.updateProperty({ ...property, options: [...property.options, ...options] });
+  }
+  for (const row of apply.add) {
+    const id = await store.createRow(databaseId, row.values);
+    if (row.title) usePages.getState().update(id, { title: row.title });
+  }
+  for (const row of apply.update) {
+    if (row.title) usePages.getState().update(row.rowId, { title: row.title });
+    for (const [propertyId, value] of Object.entries(row.values)) store.setValue(databaseId, row.rowId, propertyId, value);
+  }
+}
+
 function boardBridge(pageId: string): BoardBridge {
   const bridge = useActiveBoard.getState().bridge;
   if (!bridge || bridge.pageId !== pageId) throw new Error('Das Board ist nicht bereit oder schreibgeschützt.');
@@ -245,16 +323,25 @@ export async function acceptAiBar(): Promise<void> {
   const p = pending;
   if (!p) return;
   try {
+    if (p.kind === 'database') {
+      await applyDatabase(p.pageId, p.apply);
+      closeAiBar();
+      toast('Übernommen');
+      return;
+    }
     if (p.kind === 'board') {
       await boardBridge(p.pageId).applyEdits(planEdits(p.ops, p.model, p.elements), p.created);
     } else if (p.newPage) {
       const doc = applyOps({ type: 'doc', content: [{ type: 'paragraph' }] }, p.ops);
+      // Boards haben keine Unterseiten: dann neben das Board.
+      const source = usePages.getState().pages[p.pageId];
+      const parentId = source?.type === 'page' ? p.pageId : (source?.parentId ?? null);
       const id = await usePages.getState().create({
-        parentId: p.pageId,
+        parentId,
         title: p.plan.title || 'Neue Seite',
         extra: (page) => saveContent(page.id, doc, jsonText(doc), collectLinkTargets(doc, page.id), Date.now()),
       });
-      useUI.getState().setExpanded(p.pageId, true);
+      if (parentId) useUI.getState().setExpanded(parentId, true);
       useUI.getState().open(id);
     } else {
       const editor = getActiveEditor();
@@ -273,6 +360,34 @@ export async function acceptAiBar(): Promise<void> {
 export function discardPreview(): void {
   pending = null;
   useAiBar.setState({ status: 'idle', preview: null });
+}
+
+/** Board als neue Seite zusammenfassen (Schnellaktion der Leiste) */
+export async function boardToPage(): Promise<void> {
+  const page = currentPage();
+  if (!page) return;
+  const snap = boardBridge(page.id).snapshot();
+  const text = describeBoard(buildModel(snap.elements), null);
+  if (!text.trim()) return void useAiBar.setState({ status: 'error', error: 'Das Board ist leer.' });
+  const attachment: Attachment = { kind: 'page', id: page.id, title: page.title || 'Board', markdown: text };
+  controller?.abort();
+  const abort = new AbortController();
+  controller = abort;
+  useAiBar.setState({ status: 'running', error: null, progress: 0 });
+  try {
+    await runPage(
+      page.id,
+      'Fasse das Board als übersichtliche Notiz zusammen: Überschriften je Gruppe, wichtigste Punkte, am Ende offene Fragen und nächste Schritte.',
+      [attachment],
+      true,
+      undefined,
+      abort.signal,
+      (_d, full) => useAiBar.setState({ progress: full.length }),
+    );
+  } catch (err) {
+    if (err instanceof AiCancelled) return;
+    useAiBar.setState({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+  }
 }
 
 /** Markierte Post-its clustern (Schnellaktion der Leiste) */

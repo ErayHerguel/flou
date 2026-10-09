@@ -12,9 +12,7 @@ import {
   restoreElements,
 } from '@excalidraw/excalidraw';
 import type { BinaryFiles, Collaborator, ExcalidrawImperativeAPI, ExcalidrawInitialDataState, SocketId } from '@excalidraw/excalidraw/types';
-import { Sparkles, StickyNote } from 'lucide-react';
-import { useAiReady } from '../ai/store';
-import { openAiBar } from '../ai/edit/session';
+import { StickyNote } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { flush } from '../../db/saveQueue';
 import { saveBlob } from '../../lib/download';
@@ -59,7 +57,6 @@ export default function BoardCanvas({ pageId }: { pageId: string }) {
 
 function Canvas({ pageId, source }: { pageId: string; source: BoardSource }) {
   const editable = useCanEdit(pageId);
-  const aiReady = useAiReady();
   const [initial, setInitial] = useState<ExcalidrawInitialDataState | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -280,18 +277,6 @@ function Canvas({ pageId, source }: { pageId: string; source: BoardSource }) {
         renderTopRightUI={() =>
           editable ? (
             <div className="flex items-center gap-1 rounded-lg bg-surface p-1 shadow-popover">
-              {aiReady && (
-                <>
-                  <button
-                    title="Board mit KI bearbeiten (⌘J)"
-                    onClick={() => openAiBar()}
-                    className="flex h-6 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-accent hover:bg-hover"
-                  >
-                    <Sparkles size={14} /> KI
-                  </button>
-                  <div className="mx-0.5 h-4 w-px bg-border" />
-                </>
-              )}
               <StickyNote size={15} className="mx-1 text-muted" aria-hidden />
               {STICKY_COLORS.map((s) => (
                 <button

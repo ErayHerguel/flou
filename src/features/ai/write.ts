@@ -12,6 +12,7 @@ export type WriteAction =
   | 'english'
   | 'german'
   | 'custom'
+  | 'explain'
   | 'summarize'
   | 'tasks'
   | 'continue';
@@ -30,6 +31,7 @@ export const REWRITE_ACTIONS: { id: WriteAction; label: string }[] = [
 const LABELS: Record<WriteAction, string> = {
   ...Object.fromEntries(REWRITE_ACTIONS.map((a) => [a.id, a.label])),
   custom: 'Eigene Anweisung',
+  explain: 'Erklären',
   summarize: 'Seite zusammenfassen',
   tasks: 'Aufgaben herausziehen',
   continue: 'Weiterschreiben',
@@ -69,10 +71,27 @@ const FEATURE: Record<WriteAction, Feature> = {
   english: 'rewrite',
   german: 'rewrite',
   custom: 'rewrite',
+  explain: 'explain',
   summarize: 'summarize',
   tasks: 'tasks',
   continue: 'continue',
 };
+
+/** Erklärt markierten Text, ohne ihn zu ersetzen (Fachbegriffe, Zusammenhänge, Beispiele). */
+export function explainRequest(text: string): AiRequest {
+  const t = approxTokens(text);
+  return {
+    feature: 'explain',
+    title: 'Erklären',
+    system:
+      'Du erklärst Textstellen aus Notizen verständlich: Was bedeutet das, welche Begriffe sind wichtig, ein kurzes Beispiel. Knapp, in Markdown, ohne Einleitung, in der Sprache des Textes.',
+    messages: [{ role: 'user', content: `<text>\n${text}\n</text>` }],
+    maxTokens: 4_000,
+    effort: 'low',
+    output: [200, 900 + t],
+    mock: () => '**Kurz erklärt:** Simulierte Erklärung der markierten Stelle.',
+  };
+}
 
 export function rewriteRequest(action: WriteAction, text: string, instruction = ''): AiRequest {
   const task = action === 'custom' ? instruction.trim() : INSTRUCTIONS[action];

@@ -439,10 +439,10 @@ export const actions: AppAction[] = [
   },
   {
     id: 'ai.bar',
-    label: 'KI: Seite oder Board bearbeiten …',
+    label: 'KI: Seite, Board oder Datenbank bearbeiten …',
     group: 'KI',
     keys: 'Mod+J',
-    when: () => aiUsable() && (currentPage()?.type === 'page' || currentPage()?.type === 'board'),
+    when: () => aiUsable() && !!currentPage(),
     run: () => openAiBar(),
   },
   {

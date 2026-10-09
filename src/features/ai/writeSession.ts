@@ -6,10 +6,11 @@ import { useUI } from '../../store/ui';
 import { AiCancelled, askAi, type AiRequest } from './client';
 import { asInsertable, cleanAnswer, fromAiMarkdown, pageMarkdown, rangeMarkdown } from './markdown';
 import { modelInfo } from './models';
-import { pageRequest, rewriteRequest, type WriteAction } from './write';
+import { closeAiBar } from './edit/session';
+import { explainRequest, pageRequest, rewriteRequest, type WriteAction } from './write';
 
 /** Wo das Ergebnis landet */
-export type Target = 'replace' | 'cursor' | 'top' | 'end';
+export type Target = 'replace' | 'below' | 'cursor' | 'top' | 'end';
 
 export interface WriteSession {
   id: number;
@@ -48,6 +49,7 @@ function end(): void {
 /** Startet eine Schreibhilfe-Aktion im Editor. Ergebnis erscheint als Vorschau im Panel. */
 export function startWrite(editor: Editor, action: WriteAction, instruction = ''): void {
   end();
+  closeAiBar();
   const { from, to, empty } = editor.state.selection;
   const pageId = useUI.getState().currentId;
   const title = (pageId && usePages.getState().pages[pageId]?.title) || 'Ohne Titel';
@@ -65,6 +67,10 @@ export function startWrite(editor: Editor, action: WriteAction, instruction = ''
     const before = rangeMarkdown(editor, 0, from);
     const after = rangeMarkdown(editor, from, size);
     request = pageRequest('continue', `${before}\n<weiter/>\n${after}`.trim(), title);
+  } else if (action === 'explain') {
+    if (empty) return;
+    target = 'below';
+    request = explainRequest(rangeMarkdown(editor, from, to));
   } else {
     if (empty) return;
     target = 'replace';
@@ -143,7 +149,12 @@ export function acceptWrite(placement: 'replace' | 'below' = 'replace'): void {
   const chain = editor.chain().focus();
   if (session.target === 'replace' && placement === 'replace') {
     chain.insertContentAt({ from, to }, asInsertable(content)).run();
-  } else if (session.target === 'replace' || session.target === 'cursor') {
+  } else if (session.target === 'replace' || session.target === 'cursor' || session.target === 'below') {
+    // Erklärungen landen als Callout unter dem Absatz.
+    if (session.target === 'below') {
+      chain.insertContentAt(afterBlock(editor, to), { type: 'callout', attrs: { icon: '💡' }, content: calloutParagraphs(content) }).run();
+      return end();
+    }
     const at = session.target === 'cursor' && placement === 'replace' ? from : afterBlock(editor, to);
     chain.insertContentAt(at, session.target === 'cursor' && placement === 'replace' ? asInsertable(content) : content).run();
   } else if (session.target === 'top') {
@@ -162,7 +173,16 @@ function afterBlock(editor: Editor, pos: number): number {
 
 /** Zusammenfassung als Callout oben auf der Seite (Callouts enthalten nur Absätze). */
 function summaryCallout(content: JSONContent[]): JSONContent {
-  const paragraphs: JSONContent[] = [{ type: 'paragraph', content: [{ type: 'text', text: 'Zusammenfassung', marks: [{ type: 'bold' }] }] }];
+  const paragraphs: JSONContent[] = [
+    { type: 'paragraph', content: [{ type: 'text', text: 'Zusammenfassung', marks: [{ type: 'bold' }] }] },
+    ...calloutParagraphs(content),
+  ];
+  return { type: 'callout', attrs: { icon: '📌' }, content: paragraphs };
+}
+
+/** Beliebigen Inhalt in Absätze umwandeln (Listen werden zu „• …“). */
+function calloutParagraphs(content: JSONContent[]): JSONContent[] {
+  const paragraphs: JSONContent[] = [];
   const walk = (nodes: JSONContent[]) => {
     for (const node of nodes) {
       if (node.type === 'paragraph') paragraphs.push(node);
@@ -175,7 +195,7 @@ function summaryCallout(content: JSONContent[]): JSONContent {
     }
   };
   walk(content);
-  return { type: 'callout', attrs: { icon: '📌' }, content: paragraphs };
+  return paragraphs.length ? paragraphs : [{ type: 'paragraph' }];
 }
 
 export const sessionModelName = (session: WriteSession) => (session.model ? modelInfo(session.model).short : '');

@@ -1,6 +1,7 @@
 import type { AiRequest, Content } from '../client';
 import type { Block } from '../stream';
 import { BOARD_EDIT_SCHEMA, type BoardEditPlan } from './boardModel';
+import { DB_EDIT_SCHEMA, type DbEditPlan } from './dbModel';
 import { PAGE_EDIT_SCHEMA, type PageEditPlan } from './pageModel';
 
 /** Angehängte Quellen in der KI-Leiste */
@@ -120,5 +121,44 @@ export function boardEditRequest(opts: {
         ops: [{ op: 'add', target: '', text: `Simuliert: ${instruction.trim().slice(0, 40)}`, color: 'yellow' }],
         create: { enabled: false, title: '', subtitle: '', layout: 'clusters', columns: [], rows: [], groups: [], steps: [], takeaways: [] },
       } satisfies BoardEditPlan),
+  };
+}
+
+const SYSTEM_DB = `Du bearbeitest eine Datenbank (Tabelle) in der App flou nach Anweisung.
+Du bekommst die Spalten mit Typ und die Einträge mit kurzer id (r1, r2, …). Antworte mit:
+- add: neue Einträge (title + values), z. B. aus angehängten Quellen.
+- update: geänderte Einträge per id. title nur ausfüllen, wenn sich der Titel ändert, sonst "". values nur mit geänderten Spalten.
+- values: column = Spaltenname genau wie angegeben, value = Text im angegebenen Format (Zahl, Datum JJJJ-MM-TT, ja/nein, Mehrfachauswahl mit Komma). Bei Auswahl vorhandene Optionen bevorzugen; neue nur, wenn keine passt.
+- Spalten mit "nur lesen" nicht befüllen. Nimm Fakten nur aus Tabelle und Quellen; was sich nicht belegen lässt, bleibt leer.
+- summary: ein kurzer Satz. Sprache wie die Datenbank.`;
+
+export function databaseEditRequest(opts: { tableText: string; title: string; instruction: string; attachments: Attachment[]; previous?: DbEditPlan }): AiRequest {
+  const { tableText, title, instruction, attachments, previous } = opts;
+  const refine = previous
+    ? `\n\n<bisheriger_vorschlag>\n${JSON.stringify(previous)}\n</bisheriger_vorschlag>\nÜberarbeite diesen Vorschlag gemäß der neuen Anweisung und gib die vollständige neue Fassung an.`
+    : '';
+  const s = sources(attachments);
+  const sourceTokens = s.tokens + s.pdfs * 15_000;
+  const tableTokens = approxTokens(tableText);
+  return {
+    feature: 'database',
+    title: 'Datenbank mit KI',
+    system: SYSTEM_DB,
+    messages: [
+      {
+        role: 'user',
+        content: content(attachments, `<datenbank titel="${title.replace(/"/g, "'")}">\n${tableText}\n</datenbank>${refine}\n\n<anweisung>${instruction.trim()}</anweisung>`),
+      },
+    ],
+    maxTokens: 32_000,
+    effort: 'medium',
+    output: [400 + Math.round(tableTokens * 0.1 + sourceTokens * 0.05), 2_500 + Math.round(tableTokens * 0.8 + sourceTokens * 0.4)],
+    schema: DB_EDIT_SCHEMA,
+    mock: () =>
+      JSON.stringify({
+        summary: 'Simuliert: ein Eintrag ergänzt',
+        add: [{ title: `Simuliert: ${instruction.trim().slice(0, 30)}`, values: [] }],
+        update: [],
+      } satisfies DbEditPlan),
   };
 }

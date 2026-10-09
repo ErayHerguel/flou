@@ -15,6 +15,7 @@ import { formatUsd } from '../cost';
 import {
   acceptAiBar,
   closeAiBar,
+  boardToPage,
   clusterSelection,
   discardPreview,
   pageAttachment,
@@ -25,6 +26,7 @@ import {
 } from './session';
 
 const PAGE_CHIPS = ['Fasse die Seite oben in Stichpunkten zusammen', 'Zieh alle Aufgaben als To-do-Liste ans Ende', 'Gliedere die Seite mit Überschriften', 'Mach den Text kürzer und klarer', 'Übersetze die Seite ins Englische'];
+const DB_CHIPS = ['Fülle leere Felder sinnvoll aus', 'Vereinheitliche Schreibweisen', 'Ordne jedem Eintrag eine passende Kategorie zu', 'Ergänze fünf passende Einträge'];
 const BOARD_CHIPS = ['Kürze alle Post-its auf das Wesentliche', 'Fasse doppelte Post-its zusammen', 'Ergänze fehlende Punkte in jeder Gruppe', 'Übersetze das Board ins Englische'];
 
 const KIND_LABEL = { changed: 'Geändert', added: 'Neu', removed: 'Gelöscht', recolored: 'Neue Farbe' } as const;
@@ -107,6 +109,7 @@ export function AiBar() {
   const [picking, setPicking] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isBoard = page?.type === 'board';
+  const isDb = page?.type === 'database';
   const selectedNotes = useMemo(() => (bar.open && isBoard && bridge ? bridge.selectedNotes().length : 0), [bar.open, isBoard, bridge, bar.status]);
 
   useEffect(() => {
@@ -130,7 +133,7 @@ export function AiBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, [bar.open]);
 
-  if (!bar.open || !page || page.type === 'database') return null;
+  if (!bar.open || !page) return null;
   const running = bar.status === 'running';
   const previewing = bar.status === 'preview' && bar.preview;
 
@@ -160,14 +163,14 @@ export function AiBar() {
     void runAiBar();
   };
   const canSend = !!bar.instruction.trim() || bar.attachments.length > 0;
-  const chips = isBoard ? BOARD_CHIPS : PAGE_CHIPS;
+  const chips = isDb ? DB_CHIPS : isBoard ? BOARD_CHIPS : PAGE_CHIPS;
 
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-30 flex justify-center px-4">
       <div className="pointer-events-auto flex w-[660px] max-w-full animate-pop-in flex-col rounded-xl bg-surface shadow-popover">
         <div className="flex items-center gap-2 border-b border-border px-4 py-2">
           <Sparkles size={15} className="text-accent" />
-          <span className="text-sm font-medium">{isBoard ? 'Board mit KI' : 'Seite mit KI'}</span>
+          <span className="text-sm font-medium">{isDb ? 'Datenbank mit KI' : isBoard ? 'Board mit KI' : 'Seite mit KI'}</span>
           {isBoard && selectedNotes > 0 && <span className="text-xs text-faint">bezieht sich auf die Auswahl</span>}
           <div className="flex-1" />
           {previewing && <span className="text-xs text-faint tabular-nums">{bar.preview!.note}</span>}
@@ -202,6 +205,11 @@ export function AiBar() {
               {isBoard && selectedNotes >= 3 && (
                 <button onClick={() => void clusterSelection()} className="h-7 rounded-full border border-accent bg-accent-soft px-3 text-xs">
                   {selectedNotes} markierte Post-its clustern
+                </button>
+              )}
+              {isBoard && (
+                <button onClick={() => void boardToPage()} className="h-7 rounded-full border border-border px-3 text-xs text-muted hover:bg-hover hover:text-text">
+                  Als Seite zusammenfassen
                 </button>
               )}
               {chips.map((c) => (
@@ -258,7 +266,9 @@ export function AiBar() {
             placeholder={
               previewing
                 ? 'Weiter verfeinern, z. B. „noch kürzer“ … (↩)'
-                : isBoard
+                : isDb
+                  ? 'Was soll Claude mit der Datenbank tun? z. B. „Lege aus der PDF alle Termine an“'
+                  : isBoard
                   ? 'Was soll Claude mit dem Board tun? z. B. „Ergänze bei Education zwei Hebel“'
                   : 'Was soll Claude mit der Seite tun? z. B. „Mach aus der Liste eine Tabelle“'
             }
@@ -270,7 +280,7 @@ export function AiBar() {
           <button title="Seite als Quelle anhängen" aria-label="Seite anhängen" onClick={() => setPicking((v) => !v)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-hover">
             <Paperclip size={16} />
           </button>
-          {!isBoard && (
+          {!isBoard && !isDb && (
             <button
               title={bar.newPage ? 'Ergebnis als neue Unterseite' : 'Ergebnis in dieser Seite'}
               onClick={() => useAiBar.setState((s) => ({ newPage: !s.newPage }))}
