@@ -24,6 +24,9 @@ import { useHosting } from './features/collab/host/hosting';
 import { ShareDialog } from './features/collab/host/ShareDialog';
 import { JoinDialog } from './features/collab/JoinDialog';
 import { SettingsDialog } from './features/settings/SettingsDialog';
+import { AiConfirm } from './features/ai/AiConfirm';
+import { useAi } from './features/ai/store';
+import { refreshSpend } from './features/ai/usage';
 import { VersionsDialog } from './features/history/VersionsDialog';
 import { runFirstStart } from './features/onboarding/firstRun';
 import { CommandPalette } from './features/palette/CommandPalette';
@@ -57,6 +60,8 @@ function bootstrap(): Promise<void> {
     const settings = await loadSettings();
     useUI.getState().hydrate(settings);
     hydrateUpdates(settings);
+    await useAi.getState().hydrate(settings);
+    refreshSpend().catch((err) => console.error('KI-Kosten', err));
     await usePages.getState().load();
     hydrateSpecial(settings);
     await useHosting.getState().hydrate(settings);
@@ -159,6 +164,7 @@ export function App() {
       {overlay === 'settings' && <SettingsDialog />}
       {overlay === 'templates' && <TemplatePicker />}
       <ConfirmDialog />
+      <AiConfirm />
       <Toasts />
       {/* Hinweise unten rechts, übereinander */}
       <div className="fixed right-4 bottom-4 z-50 flex w-[320px] flex-col gap-2 print:hidden">

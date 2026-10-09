@@ -1,3 +1,4 @@
+mod ai;
 mod assets;
 mod backup;
 mod db;
@@ -56,6 +57,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/007_devices.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "ai usage",
+            sql: include_str!("../migrations/008_ai_usage.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -99,6 +106,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(db::Db::new())
+        .manage(ai::Ai::new())
         .manage(share::Share::new())
         .manage(started)
         .setup(|app| {
@@ -121,6 +129,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_quit,
             app_ready,
+            ai::ai_cancel,
+            ai::ai_count,
+            ai::ai_key_delete,
+            ai::ai_key_set,
+            ai::ai_mock,
+            ai::ai_read_pdf,
+            ai::ai_stream,
+            ai::ai_test,
             notify::notify,
             print_page,
             assets::file_import,

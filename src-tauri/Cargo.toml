@@ -30,9 +30,11 @@ tauri-plugin-global-shortcut = "~2.3.2"
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "ws", "json", "query"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 getrandom = "0.3"
-reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "stream"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 flate2 = "1"
+base64 = "0.22"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
 tar = "0.4"
 
 [profile.release]

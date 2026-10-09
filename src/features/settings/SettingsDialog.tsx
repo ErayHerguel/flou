@@ -1,6 +1,6 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { Copy, Database, Globe, Monitor, Moon, QrCode, RefreshCw, Settings, Smartphone, Sun, Trash2, X, type LucideIcon } from 'lucide-react';
+import { Copy, Database, Globe, Monitor, Moon, QrCode, RefreshCw, Settings, Smartphone, Sparkles, Sun, Trash2, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { renderSVG } from 'uqr';
 import { IconButton } from '../../components/IconButton';
@@ -18,54 +18,20 @@ import { StatusCard } from '../collab/host/ShareDialog';
 import { usePresence } from '../collab/presence';
 import { formatCombo } from '../shortcuts/keys';
 import { useUpdate } from '../update/updater';
+import { AiSettings } from '../ai/AiSettings';
+import { useSettingsSection } from '../ai/client';
+import { Button, Heading, Toggle } from './controls';
 
-type Section = 'general' | 'sharing' | 'devices' | 'data' | 'updates';
+type Section = 'general' | 'ai' | 'sharing' | 'devices' | 'data' | 'updates';
 
 const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: 'general', label: 'Allgemein', icon: Settings },
+  { id: 'ai', label: 'KI', icon: Sparkles },
   { id: 'sharing', label: 'Teilen', icon: Globe },
   { id: 'devices', label: 'Meine Geräte', icon: Smartphone },
   { id: 'data', label: 'Daten', icon: Database },
   { id: 'updates', label: 'Updates', icon: RefreshCw },
 ];
-
-function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (on: boolean) => void; label: string; hint?: ReactNode }) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 py-2">
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs text-faint">{hint}</span>}
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={cx('relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors', checked ? 'bg-accent' : 'bg-active')}
-      >
-        <span className={cx('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-[left]', checked ? 'left-[18px]' : 'left-0.5')} />
-      </button>
-    </label>
-  );
-}
-
-function Heading({ children }: { children: ReactNode }) {
-  return <h3 className="mb-2 text-xs font-medium text-faint">{children}</h3>;
-}
-
-function Button({ onClick, children, primary }: { onClick: () => void; children: ReactNode; primary?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cx(
-        'flex h-8 items-center gap-1.5 rounded-md px-3 text-sm',
-        primary ? 'bg-accent font-medium text-accent-fg' : 'border border-border hover:bg-hover',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 const THEMES: { id: Theme; label: string; icon: LucideIcon }[] = [
   { id: 'system', label: 'System', icon: Monitor },
@@ -328,10 +294,15 @@ function Updates() {
 }
 
 export function SettingsDialog() {
-  const [section, setSection] = useState<Section>('general');
+  const [section, setSection] = useState<Section>(() => {
+    const wanted = useSettingsSection.getState().section;
+    useSettingsSection.setState({ section: null });
+    return SECTIONS.some((s) => s.id === wanted) ? (wanted as Section) : 'general';
+  });
   const close = () => useUI.getState().setOverlay(null);
   const content: Record<Section, ReactNode> = {
     general: <General />,
+    ai: <AiSettings />,
     sharing: <Sharing />,
     devices: <Devices />,
     data: <Data />,
