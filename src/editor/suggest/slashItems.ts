@@ -24,7 +24,11 @@ import {
   Type,
   type LucideIcon,
   LayoutTemplate,
+  Sparkles,
+  ListTodo,
+  PenLine,
 } from 'lucide-react';
+import { startWrite } from '../../features/ai/writeSession';
 import { pickAndStoreFile, pickImage } from '../../lib/assets';
 import { columnsContent } from '../nodes/columns';
 import { createBoard } from '../../features/board/create';
@@ -43,11 +47,13 @@ export interface SlashItem {
   id: string;
   title: string;
   description: string;
-  group: 'Grundblöcke' | 'Layout' | 'Medien' | 'Seiten';
+  group: 'Grundblöcke' | 'Layout' | 'Medien' | 'Seiten' | 'KI';
   keywords: string[];
   icon: LucideIcon;
   /** Nur im eigenen Workspace (nicht als Gast) */
   hostOnly?: boolean;
+  /** Nur mit eingerichteter KI */
+  ai?: boolean;
   run(editor: Editor, range: Range, ctx: SlashContext): void;
 }
 
@@ -285,5 +291,47 @@ export const SLASH_ITEMS: SlashItem[] = [
     keywords: ['link', 'verweis', 'mention', '[['],
     icon: Link2,
     run: (editor, range) => block(editor, range).insertContent('[[').run(),
+  },
+  {
+    id: 'ai.continue',
+    title: 'KI: Weiterschreiben',
+    description: 'Claude schreibt an dieser Stelle weiter',
+    group: 'KI',
+    keywords: ['ki', 'ai', 'claude', 'weiter', 'schreiben', 'continue'],
+    icon: PenLine,
+    hostOnly: true,
+    ai: true,
+    run: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run();
+      startWrite(editor, 'continue');
+    },
+  },
+  {
+    id: 'ai.summarize',
+    title: 'KI: Seite zusammenfassen',
+    description: 'Stichpunkte oben auf der Seite',
+    group: 'KI',
+    keywords: ['ki', 'ai', 'claude', 'zusammenfassung', 'summary', 'tldr'],
+    icon: Sparkles,
+    hostOnly: true,
+    ai: true,
+    run: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run();
+      startWrite(editor, 'summarize');
+    },
+  },
+  {
+    id: 'ai.tasks',
+    title: 'KI: Aufgaben herausziehen',
+    description: 'To-dos aus der Seite als Liste',
+    group: 'KI',
+    keywords: ['ki', 'ai', 'claude', 'aufgaben', 'todo', 'tasks'],
+    icon: ListTodo,
+    hostOnly: true,
+    ai: true,
+    run: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run();
+      startWrite(editor, 'tasks');
+    },
   },
 ];

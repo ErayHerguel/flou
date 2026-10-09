@@ -1,12 +1,15 @@
 import type { Editor } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Bold, Check, Code, ExternalLink, Highlighter, Italic, Link2, MessageSquare, PenLine, Strikethrough, Underline, type LucideIcon } from 'lucide-react';
+import { Bold, Check, Code, ExternalLink, Highlighter, Italic, Link2, MessageSquare, PenLine, Sparkles, Strikethrough, Underline, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { openExternal } from '../lib/assets';
 import { newId } from '../lib/ids';
 import { cx } from '../lib/cx';
 import { formatCombo } from '../features/shortcuts/keys';
 import { reportError } from '../store/toast';
+import { useAiReady } from '../features/ai/store';
+import { REWRITE_ACTIONS } from '../features/ai/write';
+import { startWrite } from '../features/ai/writeSession';
 
 interface MarkButton {
   mark: string;
@@ -36,7 +39,8 @@ const shouldShow: ShouldShow = ({ editor, state }) => {
 /** Schwebende Leiste bei Textauswahl. Mod+Shift+K öffnet direkt die Link-Eingabe. */
 export function Toolbar({ editor }: { editor: Editor }) {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
-  const [mode, setMode] = useState<'marks' | 'link' | 'comment'>('marks');
+  const [mode, setMode] = useState<'marks' | 'link' | 'comment' | 'ai'>('marks');
+  const aiReady = useAiReady();
   const options = useMemo(() => ({ placement: 'top' as const, offset: 8, onHide: () => setMode('marks') }), []);
   const setLinkMode = (on: boolean) => setMode(on ? 'link' : 'marks');
 
@@ -62,7 +66,18 @@ export function Toolbar({ editor }: { editor: Editor }) {
       className="z-40"
     >
       <div className="flex items-center gap-0.5 rounded-lg bg-surface p-1 shadow-popover">
-        {mode === 'link' ? (
+        {mode === 'ai' ? (
+          <AiMenu
+            onPick={(action, instruction) => {
+              setMode('marks');
+              startWrite(editor, action, instruction);
+            }}
+            onCancel={() => {
+              setMode('marks');
+              editor.commands.focus();
+            }}
+          />
+        ) : mode === 'link' ? (
           <LinkInput editor={editor} onDone={() => setLinkMode(false)} />
         ) : mode === 'comment' ? (
           <CommentInput
@@ -75,6 +90,19 @@ export function Toolbar({ editor }: { editor: Editor }) {
           />
         ) : (
           <>
+            {aiReady && editor.isEditable && (
+              <>
+                <button
+                  title="KI: Text überarbeiten"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setMode('ai')}
+                  className="flex h-7 items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-hover"
+                >
+                  <Sparkles size={15} /> KI
+                </button>
+                <div className="mx-0.5 h-5 w-px bg-border" />
+              </>
+            )}
             {MARKS.map(({ mark, icon: Icon, label, toggle }) => (
               <button
                 key={mark}
@@ -192,6 +220,44 @@ export function TableMenu({ editor }: { editor: Editor }) {
         {action('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), true)}
       </div>
     </BubbleMenu>
+  );
+}
+
+/** Aktionen der Schreibhilfe für die Auswahl, plus eigene Anweisung. */
+function AiMenu({ onPick, onCancel }: { onPick: (action: (typeof REWRITE_ACTIONS)[number]['id'] | 'custom', instruction?: string) => void; onCancel: () => void }) {
+  const [instruction, setInstruction] = useState('');
+  return (
+    <div className="flex w-[300px] flex-col gap-1 p-0.5">
+      <input
+        autoFocus
+        value={instruction}
+        onChange={(e) => setInstruction(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && instruction.trim()) {
+            e.preventDefault();
+            onPick('custom', instruction);
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+        placeholder="Was soll Claude tun? (↩)"
+        className="h-8 rounded-md bg-bg px-2 text-sm outline-none placeholder:text-faint"
+      />
+      <div className="grid grid-cols-2 gap-0.5">
+        {REWRITE_ACTIONS.map((a) => (
+          <button
+            key={a.id}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(a.id)}
+            className="h-7 rounded-md px-2 text-left text-sm text-muted hover:bg-hover hover:text-text"
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

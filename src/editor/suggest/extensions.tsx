@@ -9,6 +9,7 @@ import { usePages } from '../../store/pages';
 import { reportError } from '../../store/toast';
 import { listRenderer } from './renderer';
 import { SLASH_ITEMS, type SlashItem } from './slashItems';
+import { aiUsable } from '../../features/ai/store';
 import { GUEST } from '../../lib/mode';
 
 interface PageContextOptions {
@@ -27,7 +28,11 @@ export const SlashCommand = Extension.create<PageContextOptions>({
         char: '/',
         allow: ({ editor }) => !editor.isActive('codeBlock'),
         items: ({ query }) =>
-          fuzzyFilter(GUEST ? SLASH_ITEMS.filter((item) => !item.hostOnly) : SLASH_ITEMS, query, (item) => [item.title, ...item.keywords]),
+          fuzzyFilter(
+            SLASH_ITEMS.filter((item) => !(GUEST && item.hostOnly) && !(item.ai && !aiUsable())),
+            query,
+            (item) => [item.title, ...item.keywords],
+          ),
         command: ({ editor, range, props }) => props.run(editor, range, { pageId: this.options.pageId }),
         render: listRenderer<SlashItem>({
           itemKey: (item) => item.id,

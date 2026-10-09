@@ -14,13 +14,18 @@ import { useUI, type Theme } from '../store/ui';
 import { quitApp } from './lifecycle';
 import { GUEST } from '../lib/mode';
 import { useAccess } from './collab/sources';
+import { aiUsable } from './ai/store';
+import { useSettingsSection } from './ai/client';
+import { startWrite } from './ai/writeSession';
 
 export type MenuSection = 'app' | 'file' | 'edit' | 'view' | 'go' | 'help';
 
 export interface AppAction {
   id: string;
   label: string;
-  group: 'Allgemein' | 'Seite' | 'Navigation' | 'Ansicht' | 'Bearbeiten';
+  group: 'Allgemein' | 'Seite' | 'Navigation' | 'Ansicht' | 'Bearbeiten' | 'KI';
+  /** Nur anbieten, wenn das zutrifft (z. B. KI eingerichtet) */
+  when?: () => boolean;
   keys?: string;
   /** Kürzel nur über das native Menü auslösen (der Editor oder das System verarbeitet die Taste selbst). */
   menuOnly?: boolean;
@@ -64,6 +69,12 @@ async function createBoardAndOpen(parentId: string | null): Promise<void> {
   const id = await createBoard(parentId);
   if (parentId) useUI.getState().setExpanded(parentId, true);
   useUI.getState().open(id);
+}
+
+function withEditor(run: (editor: NonNullable<ReturnType<typeof getActiveEditor>>) => void) {
+  const editor = getActiveEditor();
+  if (editor?.isEditable) run(editor);
+  else toast('Öffne zuerst eine Seite');
 }
 
 function setTheme(theme: Theme) {
@@ -420,6 +431,29 @@ export const actions: AppAction[] = [
     run: () => invoke('reveal_dir', { which: 'backups' }),
   },
   {
+    id: 'ai.summarize',
+    label: 'KI: Seite zusammenfassen',
+    group: 'KI',
+    when: () => aiUsable() && getActiveEditor() !== null,
+    run: () => withEditor((editor) => startWrite(editor, 'summarize')),
+  },
+  {
+    id: 'ai.tasks',
+    label: 'KI: Aufgaben herausziehen',
+    group: 'KI',
+    when: () => aiUsable() && getActiveEditor() !== null,
+    run: () => withEditor((editor) => startWrite(editor, 'tasks')),
+  },
+  {
+    id: 'ai.settings',
+    label: 'KI: Einstellungen und Kosten …',
+    group: 'KI',
+    run: () => {
+      useSettingsSection.setState({ section: 'ai' });
+      useUI.getState().setOverlay('settings');
+    },
+  },
+  {
     id: 'settings.open',
     label: 'Einstellungen …',
     group: 'Allgemein',
@@ -500,7 +534,7 @@ const DEVICE_ACTIONS = new Set([...GUEST_ACTIONS, 'page.new', 'page.newDatabase'
 
 /** Aktionen, die hier ausgeführt werden können (Gastmodus: abhängig vom Zugriff). */
 export function availableActions(): AppAction[] {
-  if (!GUEST) return actions;
+  if (!GUEST) return actions.filter((a) => !a.when || a.when());
   const allowed = useAccess.getState().access === null ? DEVICE_ACTIONS : GUEST_ACTIONS;
   return actions.filter((a) => allowed.has(a.id));
 }

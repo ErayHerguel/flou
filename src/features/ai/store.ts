@@ -75,3 +75,8 @@ export const useAi = create<AiState>((set) => ({
 
 /** KI ist benutzbar: in der App, mit Schlüssel (oder simuliert). */
 export const useAiReady = () => useAi((s) => s.available && (s.keySet || s.mock));
+
+export function aiUsable(): boolean {
+  const s = useAi.getState();
+  return s.available && (s.keySet || s.mock);
+}
