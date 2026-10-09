@@ -3,7 +3,7 @@ import { usePages } from '../store/pages';
 import { freshDatabase } from '../test/setup';
 import { saveContent } from './content';
 import { flush } from './saveQueue';
-import { MARK_END, MARK_START, searchPages, toFtsQuery } from './search';
+import { MARK_END, MARK_START, searchPages, searchRelevant, toFtsQuery } from './search';
 
 let driver: Awaited<ReturnType<typeof freshDatabase>>;
 beforeEach(async () => {
@@ -65,5 +65,16 @@ describe('Volltextsuche', () => {
     expect(rare.map((h) => h.id)).toEqual(['p4321']);
     expect(common.length).toBeGreaterThan(0);
     expect(elapsed).toBeLessThan(50);
+  });
+});
+
+describe('Suche für KI-Fragen', () => {
+  it('findet Seiten zu einzelnen Wörtern einer Frage und ignoriert Füllwörter', async () => {
+    const brief = await usePages.getState().create({ title: 'Design Brief' });
+    const other = await usePages.getState().create({ title: 'Einkaufsliste' });
+    await write(brief, 'Empfehlung: Automotive, Plan B Education.');
+    await write(other, 'Milch und Brot');
+    expect(await searchRelevant('Was war nochmal die Empfehlung für den Brief?')).toEqual([brief]);
+    expect(await searchRelevant('was ist das')).toEqual([]);
   });
 });

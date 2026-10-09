@@ -30,6 +30,8 @@ export interface AiRequest {
   schema?: Record<string, unknown>;
   /** Websuche erlauben, höchstens so viele Suchen */
   webSearch?: number;
+  /** Zusätzliche Eingabe, die erst während der Antwort entsteht (z. B. Suchergebnisse) [wenig, viel] */
+  extraInput?: [number, number];
   /** Antwort des simulierten Claude (nur Entwicklungs-Builds) */
   mock?: () => string;
 }
@@ -89,7 +91,14 @@ export interface Prepared {
 export async function prepare(req: AiRequest): Promise<Prepared> {
   const inputTokens = await countInput(req, useAi.getState().model);
   const searches: [number, number] = req.webSearch ? [Math.min(2, req.webSearch), req.webSearch] : [0, 0];
-  return { inputTokens, estimates: MODELS.map((m) => estimateCost(m.id, inputTokens, req.output, searches)) };
+  const [extraLow, extraHigh] = req.extraInput ?? [0, 0];
+  const estimates = MODELS.map((m) => ({
+    model: m.id,
+    inputTokens,
+    low: estimateCost(m.id, inputTokens + extraLow, [req.output[0], req.output[0]], [searches[0], searches[0]]).low,
+    high: estimateCost(m.id, inputTokens + extraHigh, [req.output[1], req.output[1]], [searches[1], searches[1]]).high,
+  }));
+  return { inputTokens, estimates };
 }
 
 let counter = 0;

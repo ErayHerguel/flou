@@ -27,6 +27,7 @@ import { SettingsDialog } from './features/settings/SettingsDialog';
 import { AiConfirm } from './features/ai/AiConfirm';
 import { WritePanel } from './features/ai/WritePanel';
 import { BoardAiDialog } from './features/ai/board/BoardAiDialog';
+import { AskDialog } from './features/ai/AskDialog';
 import { useAi } from './features/ai/store';
 import { refreshSpend } from './features/ai/usage';
 import { VersionsDialog } from './features/history/VersionsDialog';
@@ -169,6 +170,7 @@ export function App() {
       <AiConfirm />
       <WritePanel />
       <BoardAiDialog />
+      <AskDialog />
       <Toasts />
       {/* Hinweise unten rechts, übereinander */}
       <div className="fixed right-4 bottom-4 z-50 flex w-[320px] flex-col gap-2 print:hidden">

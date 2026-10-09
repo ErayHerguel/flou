@@ -18,6 +18,7 @@ import { aiUsable } from './ai/store';
 import { useSettingsSection } from './ai/client';
 import { startWrite } from './ai/writeSession';
 import { openBoardAi, pageToBoard } from './ai/board/BoardAiDialog';
+import { openAsk } from './ai/AskDialog';
 
 export type MenuSection = 'app' | 'file' | 'edit' | 'view' | 'go' | 'help';
 
@@ -70,6 +71,11 @@ async function createBoardAndOpen(parentId: string | null): Promise<void> {
   const id = await createBoard(parentId);
   if (parentId) useUI.getState().setExpanded(parentId, true);
   useUI.getState().open(id);
+}
+
+function openAiSettings() {
+  useSettingsSection.setState({ section: 'ai' });
+  useUI.getState().setOverlay('settings');
 }
 
 function withEditor(run: (editor: NonNullable<ReturnType<typeof getActiveEditor>>) => void) {
@@ -432,6 +438,21 @@ export const actions: AppAction[] = [
     run: () => invoke('reveal_dir', { which: 'backups' }),
   },
   {
+    id: 'ai.ask',
+    label: 'KI: Frag flou …',
+    group: 'KI',
+    keys: 'Mod+J',
+    when: aiUsable,
+    run: () => (aiUsable() ? openAsk('ask') : openAiSettings()),
+  },
+  {
+    id: 'ai.research',
+    label: 'KI: Recherche im Web …',
+    group: 'KI',
+    when: aiUsable,
+    run: () => openAsk('research'),
+  },
+  {
     id: 'ai.summarize',
     label: 'KI: Seite zusammenfassen',
     group: 'KI',
@@ -469,10 +490,7 @@ export const actions: AppAction[] = [
     id: 'ai.settings',
     label: 'KI: Einstellungen und Kosten …',
     group: 'KI',
-    run: () => {
-      useSettingsSection.setState({ section: 'ai' });
-      useUI.getState().setOverlay('settings');
-    },
+    run: openAiSettings,
   },
   {
     id: 'settings.open',
