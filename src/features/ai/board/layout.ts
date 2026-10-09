@@ -103,7 +103,11 @@ const rect = (x: number, y: number, width: number, height: number, backgroundCol
 /** Post-it mit zentriertem Text; lange Texte bekommen etwas kleinere Schrift. */
 function note(x: number, y: number, value: string, color: NoteColor, width = S, height = S): Skeleton {
   const fontSize = value.length > 70 ? 14 : 16;
-  return { ...rect(x, y, width, height, NOTE_FILL[color]), label: { text: value, fontSize, fontFamily: NUNITO, textAlign: 'center', verticalAlign: 'middle' } };
+  // Ohne eigene Farbe übernimmt der Text die Randfarbe des Post-its, und die ist transparent.
+  return {
+    ...rect(x, y, width, height, NOTE_FILL[color]),
+    label: { text: value, fontSize, fontFamily: NUNITO, textAlign: 'center', verticalAlign: 'middle', strokeColor: DARK },
+  };
 }
 
 const linesOf = (value: string) => value.split('\n').length;

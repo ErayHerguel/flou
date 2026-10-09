@@ -295,7 +295,7 @@ async function runBoard(pageId: string, source: BoardSource, format: BoardLayout
   const bridge = await waitForBoard(pageId);
   const { elements } = layoutBoard(plan, origin(bridge.bounds()));
   if (!elements.length) throw new Error('Claude hat keinen verwertbaren Inhalt gefunden.');
-  bridge.insert(elements);
+  await bridge.insert(elements);
   toast(`Board erstellt · ${costNote(result)}`);
 }
 
@@ -315,6 +315,6 @@ async function runCluster(pageId: string, notes: BoardNote[], focus: string, sig
     const p = positions.get(i);
     return p ? [{ id: n.id, ...p }] : [];
   });
-  bridge.arrange(moves, headers);
+  await bridge.arrange(moves, headers);
   toast(`${plan.groups.length} Gruppen · ${costNote(result)}`);
 }

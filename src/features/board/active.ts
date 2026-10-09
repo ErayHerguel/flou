@@ -17,11 +17,11 @@ export interface BoardBridge {
   /** Umriss des vorhandenen Inhalts, null bei leerem Board */
   bounds(): { minX: number; minY: number; maxX: number; maxY: number } | null;
   /** Fügt Elemente (Excalidraw-Skelette) hinzu, rückgängig machbar, und zeigt sie an. */
-  insert(skeletons: unknown[]): void;
+  insert(skeletons: unknown[]): Promise<void>;
   /** Ausgewählte Post-its */
   selectedNotes(): BoardNote[];
   /** Verschiebt Post-its (samt Text) und färbt sie um, fügt Rahmen/Überschriften hinzu. */
-  arrange(moves: { id: string; x: number; y: number; color: string }[], skeletons: unknown[]): void;
+  arrange(moves: { id: string; x: number; y: number; color: string }[], skeletons: unknown[]): Promise<void>;
 }
 
 export const useActiveBoard = create<{ bridge: BoardBridge | null }>(() => ({ bridge: null }));

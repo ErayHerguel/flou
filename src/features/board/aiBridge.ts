@@ -1,4 +1,4 @@
-import { CaptureUpdateAction, convertToExcalidrawElements, newElementWith } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, convertToExcalidrawElements, newElementWith, restoreElements } from '@excalidraw/excalidraw';
 import type { ExcalidrawElementSkeleton } from '@excalidraw/excalidraw/data/transform';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
@@ -10,8 +10,16 @@ type Element = ExcalidrawElement & { containerId?: string | null; originalText?:
 export function createBridge(pageId: string, api: ExcalidrawImperativeAPI): BoardBridge {
   const live = () => api.getSceneElements() as readonly Element[];
 
-  const convert = (skeletons: unknown[]) =>
-    convertToExcalidrawElements(skeletons as ExcalidrawElementSkeleton[], { regenerateIds: true }) as Element[];
+  /**
+   * Excalidraw misst Text beim Erzeugen. Ist Nunito noch nicht geladen (leeres Board), wird mit einer
+   * schmaleren Ersatzschrift gemessen und der Text später abgeschnitten. Deshalb erst laden, dann messen.
+   */
+  const convert = async (skeletons: unknown[]) => {
+    const chars = JSON.stringify(skeletons);
+    await Promise.all([document.fonts.load('16px Nunito', chars), document.fonts.load('16px Nunito')]).catch(() => undefined);
+    const created = convertToExcalidrawElements(skeletons as ExcalidrawElementSkeleton[], { regenerateIds: true });
+    return restoreElements(created, null, { refreshDimensions: true, repairBindings: true }) as unknown as Element[];
+  };
 
   const show = (elements: readonly ExcalidrawElement[]) => {
     if (elements.length) api.scrollToContent(elements, { fitToContent: true, animate: true });
@@ -29,8 +37,8 @@ export function createBridge(pageId: string, api: ExcalidrawImperativeAPI): Boar
         maxY: Math.max(...elements.map((e) => e.y + e.height)),
       };
     },
-    insert(skeletons) {
-      const created = convert(skeletons);
+    async insert(skeletons) {
+      const created = await convert(skeletons);
       api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...created], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
       show(created);
     },
@@ -56,7 +64,8 @@ export function createBridge(pageId: string, api: ExcalidrawImperativeAPI): Boar
       }
       return notes;
     },
-    arrange(moves, skeletons) {
+    async arrange(moves, skeletons) {
+      const frames = await convert(skeletons);
       const elements = api.getSceneElementsIncludingDeleted() as readonly Element[];
       const target = new Map(moves.map((m) => [m.id, m]));
       // Gebundener Text wandert mit seinem Post-it.
@@ -74,7 +83,6 @@ export function createBridge(pageId: string, api: ExcalidrawImperativeAPI): Boar
         return el;
       });
       // Rahmen liegen ganz hinten, damit sie keine Post-its verdecken.
-      const frames = convert(skeletons);
       api.updateScene({ elements: [...frames, ...updated], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
       show([...frames, ...updated.filter((el) => target.has(el.id))]);
     },
