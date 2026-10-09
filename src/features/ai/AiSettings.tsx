@@ -196,7 +196,7 @@ function PriceExamples() {
         </table>
       </div>
       <p className="mt-2 text-xs text-faint">
-        Beispiel: Mit 5 $ Guthaben kannst du mit Haiku tausende Absätze umschreiben, mit Opus etwa 25–80 Boards aus PDFs erstellen.
+        Beispiel: Mit 5 $ Guthaben kannst du mit Haiku tausende Absätze umschreiben, mit Opus etwa 15–25 Boards aus PDFs erstellen.
         Websuche kostet zusätzlich 1 Cent pro Suche.
       </p>
     </section>
