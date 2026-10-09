@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { create } from 'zustand';
 import { useUI } from '../../store/ui';
 import { costOf, estimateCost, formatUsd, type Estimate, type Usage } from './cost';
+import { AiCancelled, AiError } from './errors';
 import { mockCount, mockStream } from './mock';
 import { MODELS, modelInfo, type ModelId } from './models';
 import { addUsage, MessageAccumulator, type Block, type Citation } from './stream';
@@ -43,13 +44,7 @@ export interface AiResult {
   stopReason: string | null;
 }
 
-export class AiError extends Error {}
-/** Vom Nutzer abgebrochen */
-export class AiCancelled extends Error {
-  constructor() {
-    super('Abgebrochen');
-  }
-}
+export { AiCancelled, AiError } from './errors';
 
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 

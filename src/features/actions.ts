@@ -17,6 +17,7 @@ import { useAccess } from './collab/sources';
 import { aiUsable } from './ai/store';
 import { useSettingsSection } from './ai/client';
 import { startWrite } from './ai/writeSession';
+import { openBoardAi, pageToBoard } from './ai/board/BoardAiDialog';
 
 export type MenuSection = 'app' | 'file' | 'edit' | 'view' | 'go' | 'help';
 
@@ -443,6 +444,26 @@ export const actions: AppAction[] = [
     group: 'KI',
     when: () => aiUsable() && getActiveEditor() !== null,
     run: () => withEditor((editor) => startWrite(editor, 'tasks')),
+  },
+  {
+    id: 'ai.pageToBoard',
+    label: 'KI: Board aus dieser Seite',
+    group: 'KI',
+    when: () => aiUsable() && currentPage()?.type === 'page',
+    run: () => {
+      const page = currentPage();
+      if (page) void pageToBoard(page.id);
+    },
+  },
+  {
+    id: 'ai.board',
+    label: 'KI: Board füllen oder Post-its clustern …',
+    group: 'KI',
+    when: () => aiUsable() && currentPage()?.type === 'board',
+    run: () => {
+      const page = currentPage();
+      if (page) openBoardAi(page.id);
+    },
   },
   {
     id: 'ai.settings',

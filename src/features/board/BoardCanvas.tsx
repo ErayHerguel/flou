@@ -12,7 +12,9 @@ import {
   restoreElements,
 } from '@excalidraw/excalidraw';
 import type { BinaryFiles, Collaborator, ExcalidrawImperativeAPI, ExcalidrawInitialDataState, SocketId } from '@excalidraw/excalidraw/types';
-import { StickyNote } from 'lucide-react';
+import { Sparkles, StickyNote } from 'lucide-react';
+import { useAiReady } from '../ai/store';
+import { openBoardAi } from '../ai/board/BoardAiDialog';
 import { useEffect, useRef, useState } from 'react';
 import { flush } from '../../db/saveQueue';
 import { saveBlob } from '../../lib/download';
@@ -23,6 +25,8 @@ import { useCanEdit, useCollab, type BoardBinding, type BoardElement, type Board
 import { sanitizeName } from '../transfer/exportPlan';
 import { loadFiles, toBlob } from './files';
 import { localBoard } from './localBoard';
+import { useActiveBoard } from './active';
+import { createBridge } from './aiBridge';
 
 /** Farben der Sticky Notes (wie FigJam: kräftig, aber nicht grell). */
 const STICKY_COLORS = [
@@ -55,6 +59,7 @@ export default function BoardCanvas({ pageId }: { pageId: string }) {
 
 function Canvas({ pageId, source }: { pageId: string; source: BoardSource }) {
   const editable = useCanEdit(pageId);
+  const aiReady = useAiReady();
   const [initial, setInitial] = useState<ExcalidrawInitialDataState | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -147,6 +152,16 @@ function Canvas({ pageId, source }: { pageId: string; source: BoardSource }) {
     if (!api) return;
     for (const fn of backlog.current.splice(0)) fn(api);
   }, [api]);
+
+  // KI-Funktionen erreichen das Board nur, solange es offen und bearbeitbar ist.
+  useEffect(() => {
+    if (!api || !editable) return;
+    const bridge = createBridge(pageId, api);
+    useActiveBoard.setState({ bridge });
+    return () => {
+      if (useActiveBoard.getState().bridge === bridge) useActiveBoard.setState({ bridge: null });
+    };
+  }, [api, editable, pageId]);
 
   function sendOutgoing() {
     sendTimer.current = null;
@@ -265,6 +280,18 @@ function Canvas({ pageId, source }: { pageId: string; source: BoardSource }) {
         renderTopRightUI={() =>
           editable ? (
             <div className="flex items-center gap-1 rounded-lg bg-surface p-1 shadow-popover">
+              {aiReady && (
+                <>
+                  <button
+                    title="Board mit KI füllen oder Post-its clustern"
+                    onClick={() => openBoardAi(pageId)}
+                    className="flex h-6 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-accent hover:bg-hover"
+                  >
+                    <Sparkles size={14} /> KI
+                  </button>
+                  <div className="mx-0.5 h-4 w-px bg-border" />
+                </>
+              )}
               <StickyNote size={15} className="mx-1 text-muted" aria-hidden />
               {STICKY_COLORS.map((s) => (
                 <button

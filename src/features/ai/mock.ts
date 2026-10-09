@@ -1,4 +1,5 @@
 import type { AiRequest } from './client';
+import { AiCancelled } from './errors';
 import type { ModelId } from './models';
 import type { MessageAccumulator } from './stream';
 
@@ -36,7 +37,6 @@ const sleep = (ms: number, signal?: AbortSignal) =>
   });
 
 export async function mockStream(req: AiRequest, model: ModelId, acc: MessageAccumulator, signal?: AbortSignal): Promise<void> {
-  const { AiCancelled } = await import('./client');
   const text = req.mock?.() ?? `Simulierte Antwort für „${req.title}“.`;
   const input = mockCount(req);
   try {
