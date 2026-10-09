@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cx } from '../lib/cx';
 
@@ -10,10 +10,22 @@ interface ModalProps {
   position?: 'top' | 'center';
 }
 
+/** Offene Dialoge, der zuletzt geöffnete liegt oben. Esc schließt nur den obersten. */
+const stack: symbol[] = [];
+
 export function Modal({ onClose, children, className, position = 'top' }: ModalProps) {
+  const id = useRef<symbol>(Symbol('modal'));
+  useEffect(() => {
+    const me = id.current;
+    stack.push(me);
+    return () => {
+      stack.splice(stack.indexOf(me), 1);
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || stack.at(-1) !== id.current) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();
