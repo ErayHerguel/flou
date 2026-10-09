@@ -26,7 +26,7 @@ import { JoinDialog } from './features/collab/JoinDialog';
 import { SettingsDialog } from './features/settings/SettingsDialog';
 import { AiConfirm } from './features/ai/AiConfirm';
 import { WritePanel } from './features/ai/WritePanel';
-import { BoardAiDialog } from './features/ai/board/BoardAiDialog';
+import { AiBar } from './features/ai/edit/AiBar';
 import { AskDialog } from './features/ai/AskDialog';
 import { useAi } from './features/ai/store';
 import { refreshSpend } from './features/ai/usage';
@@ -169,7 +169,7 @@ export function App() {
       <ConfirmDialog />
       <AiConfirm />
       <WritePanel />
-      <BoardAiDialog />
+      <AiBar />
       <AskDialog />
       <Toasts />
       {/* Hinweise unten rechts, übereinander */}

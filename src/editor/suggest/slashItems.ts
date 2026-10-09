@@ -29,6 +29,7 @@ import {
   PenLine,
 } from 'lucide-react';
 import { startWrite } from '../../features/ai/writeSession';
+import { openAiBar } from '../../features/ai/edit/session';
 import { pickAndStoreFile, pickImage } from '../../lib/assets';
 import { columnsContent } from '../nodes/columns';
 import { createBoard } from '../../features/board/create';
@@ -291,6 +292,20 @@ export const SLASH_ITEMS: SlashItem[] = [
     keywords: ['link', 'verweis', 'mention', '[['],
     icon: Link2,
     run: (editor, range) => block(editor, range).insertContent('[[').run(),
+  },
+  {
+    id: 'ai.bar',
+    title: 'KI: Anweisung',
+    description: 'Claude bearbeitet die Seite nach deiner Anweisung, auch mit PDF',
+    group: 'KI',
+    keywords: ['ki', 'ai', 'claude', 'bearbeiten', 'anweisung', 'pdf', 'import', 'umschreiben'],
+    icon: Sparkles,
+    hostOnly: true,
+    ai: true,
+    run: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run();
+      openAiBar();
+    },
   },
   {
     id: 'ai.continue',

@@ -3,14 +3,15 @@ import { db } from '../../db/driver';
 import { commit } from '../../db/saveQueue';
 import { costOf, type Usage } from './cost';
 
-export type Feature = 'rewrite' | 'summarize' | 'tasks' | 'continue' | 'board' | 'cluster' | 'ask' | 'research';
+export type Feature = 'page' | 'rewrite' | 'summarize' | 'tasks' | 'continue' | 'board' | 'cluster' | 'ask' | 'research';
 
 export const FEATURE_LABELS: Record<Feature, string> = {
+  page: 'Seite bearbeiten',
   rewrite: 'Text bearbeiten',
   summarize: 'Zusammenfassen',
   tasks: 'Aufgaben herausziehen',
   continue: 'Weiterschreiben',
-  board: 'Dokument → Board',
+  board: 'Board erstellen/bearbeiten',
   cluster: 'Post-its clustern',
   ask: 'Frag flou',
   research: 'Recherche',

@@ -14,7 +14,7 @@ import {
 import type { BinaryFiles, Collaborator, ExcalidrawImperativeAPI, ExcalidrawInitialDataState, SocketId } from '@excalidraw/excalidraw/types';
 import { Sparkles, StickyNote } from 'lucide-react';
 import { useAiReady } from '../ai/store';
-import { openBoardAi } from '../ai/board/BoardAiDialog';
+import { openAiBar } from '../ai/edit/session';
 import { useEffect, useRef, useState } from 'react';
 import { flush } from '../../db/saveQueue';
 import { saveBlob } from '../../lib/download';
@@ -283,8 +283,8 @@ function Canvas({ pageId, source }: { pageId: string; source: BoardSource }) {
               {aiReady && (
                 <>
                   <button
-                    title="Board mit KI füllen oder Post-its clustern"
-                    onClick={() => openBoardAi(pageId)}
+                    title="Board mit KI bearbeiten (⌘J)"
+                    onClick={() => openAiBar()}
                     className="flex h-6 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-accent hover:bg-hover"
                   >
                     <Sparkles size={14} /> KI

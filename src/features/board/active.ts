@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { BoardEdits, BoardEl } from '../ai/edit/boardModel';
 
 /** Ein Post-it (Form mit Text) auf dem Board */
 export interface BoardNote {
@@ -22,6 +23,10 @@ export interface BoardBridge {
   selectedNotes(): BoardNote[];
   /** Verschiebt Post-its (samt Text) und färbt sie um, fügt Rahmen/Überschriften hinzu. */
   arrange(moves: { id: string; x: number; y: number; color: string }[], skeletons: unknown[]): Promise<void>;
+  /** Alle sichtbaren Elemente (vereinfacht) und die IDs der Auswahl */
+  snapshot(): { elements: BoardEl[]; selected: string[] };
+  /** Wendet KI-Änderungen in einem Schritt an (mit ⌘Z rückgängig) */
+  applyEdits(edits: BoardEdits, created: unknown[]): Promise<void>;
 }
 
 export const useActiveBoard = create<{ bridge: BoardBridge | null }>(() => ({ bridge: null }));

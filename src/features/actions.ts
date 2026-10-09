@@ -17,7 +17,7 @@ import { useAccess } from './collab/sources';
 import { aiUsable } from './ai/store';
 import { useSettingsSection } from './ai/client';
 import { startWrite } from './ai/writeSession';
-import { openBoardAi, pageToBoard } from './ai/board/BoardAiDialog';
+import { openAiBar, pageToBoard } from './ai/edit/session';
 import { openAsk } from './ai/AskDialog';
 
 export type MenuSection = 'app' | 'file' | 'edit' | 'view' | 'go' | 'help';
@@ -438,10 +438,18 @@ export const actions: AppAction[] = [
     run: () => invoke('reveal_dir', { which: 'backups' }),
   },
   {
+    id: 'ai.bar',
+    label: 'KI: Seite oder Board bearbeiten …',
+    group: 'KI',
+    keys: 'Mod+J',
+    when: () => aiUsable() && (currentPage()?.type === 'page' || currentPage()?.type === 'board'),
+    run: () => openAiBar(),
+  },
+  {
     id: 'ai.ask',
     label: 'KI: Frag flou …',
     group: 'KI',
-    keys: 'Mod+J',
+    keys: 'Mod+Shift+J',
     when: aiUsable,
     run: () => (aiUsable() ? openAsk('ask') : openAiSettings()),
   },
@@ -473,17 +481,7 @@ export const actions: AppAction[] = [
     when: () => aiUsable() && currentPage()?.type === 'page',
     run: () => {
       const page = currentPage();
-      if (page) void pageToBoard(page.id);
-    },
-  },
-  {
-    id: 'ai.board',
-    label: 'KI: Board füllen oder Post-its clustern …',
-    group: 'KI',
-    when: () => aiUsable() && currentPage()?.type === 'board',
-    run: () => {
-      const page = currentPage();
-      if (page) openBoardAi(page.id);
+      if (page) pageToBoard(page.id).catch((err) => reportError('Board aus Seite', err));
     },
   },
   {

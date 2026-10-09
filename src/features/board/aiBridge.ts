@@ -3,6 +3,7 @@ import type { ExcalidrawElementSkeleton } from '@excalidraw/excalidraw/data/tran
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { BoardBridge, BoardNote } from './active';
+import type { BoardEl } from '../ai/edit/boardModel';
 
 type Element = ExcalidrawElement & { containerId?: string | null; originalText?: string; text?: string };
 
@@ -63,6 +64,67 @@ export function createBridge(pageId: string, api: ExcalidrawImperativeAPI): Boar
         if (container && value) notes.push({ id, text: value, width: container.width, height: container.height });
       }
       return notes;
+    },
+    snapshot() {
+      const elements = live();
+      const selectedIds = api.getAppState().selectedElementIds;
+      const byId = new Map(elements.map((e) => [e.id, e]));
+      const simple: BoardEl[] = elements.map((e) => {
+        const textId = e.boundElements?.find((b) => b.type === 'text')?.id ?? null;
+        const own = e.type === 'text' ? (e.originalText ?? e.text ?? '') : undefined;
+        const bound = textId ? byId.get(textId) : undefined;
+        return {
+          id: e.id,
+          type: e.type,
+          x: e.x,
+          y: e.y,
+          width: e.width,
+          height: e.height,
+          backgroundColor: e.backgroundColor,
+          text: own ?? (bound ? (bound.originalText ?? bound.text ?? '') : undefined),
+          containerId: e.containerId ?? null,
+          textId,
+        };
+      });
+      // Ausgewählter Text in einem Post-it zählt als das Post-it.
+      const selected = new Set<string>();
+      for (const id of Object.keys(selectedIds)) {
+        const el = byId.get(id);
+        if (el) selected.add(el.type === 'text' && el.containerId ? el.containerId : el.id);
+      }
+      return { elements: simple, selected: [...selected] };
+    },
+    async applyEdits(edits, skeletons) {
+      const created = skeletons.length ? await convert(skeletons) : [];
+      const added = edits.add.length ? await convert(edits.add) : [];
+      const texts = new Map(edits.texts.map((t) => [t.id, t.text]));
+      const colors = new Map(edits.colors.map((c) => [c.id, c.color]));
+      const deletes = new Set(edits.deletes);
+      const grow = new Map(edits.grow.map((g) => [g.id, g.height]));
+      const updated = (api.getSceneElementsIncludingDeleted() as readonly Element[]).map((el) => {
+        if (deletes.has(el.id)) return newElementWith(el, { isDeleted: true });
+        const text = texts.get(el.id);
+        if (text !== undefined) return newElementWith(el as never, { text, originalText: text } as never) as Element;
+        const color = colors.get(el.id);
+        if (color) return newElementWith(el, { backgroundColor: color });
+        const height = grow.get(el.id);
+        if (height) return newElementWith(el, { height });
+        return el;
+      });
+      // Geänderte Texte neu umbrechen und vermessen (Post-it-Breite bleibt).
+      const chars = edits.texts.map((t) => t.text).join(' ');
+      await document.fonts.load('16px Nunito', chars || 'a').catch(() => undefined);
+      // Nur die geänderten Texte (samt ihrem Post-it) neu vermessen, alles andere bleibt unangetastet.
+      const changedTexts = updated.filter((e) => texts.has(e.id));
+      const owners = new Set(changedTexts.map((e) => e.containerId).filter(Boolean) as string[]);
+      const subset = updated.filter((e) => texts.has(e.id) || owners.has(e.id));
+      const remeasured = new Map(
+        (restoreElements(subset, null, { refreshDimensions: true, repairBindings: true }) as unknown as Element[]).map((e) => [e.id, e]),
+      );
+      const measured = updated.map((e) => remeasured.get(e.id) ?? e);
+      api.updateScene({ elements: [...measured, ...added, ...created], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+      const touched = new Set([...texts.keys(), ...colors.keys()]);
+      show([...measured.filter((e) => touched.has(e.id) && !e.isDeleted), ...added, ...created]);
     },
     async arrange(moves, skeletons) {
       const frames = await convert(skeletons);

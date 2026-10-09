@@ -36,7 +36,21 @@ export function fromAiMarkdown(markdown: string): JSONContent[] {
     resolvePage: (target, kind) => (kind === 'title' ? resolveTitle(target) : null),
     image: () => null,
   });
-  return (doc.content ?? []).filter((n) => n.type !== 'image');
+  return (doc.content ?? []).filter((n) => n.type !== 'image').map(toCallout);
+}
+
+const LEADING_EMOJI = /^(\p{Extended_Pictographic}\uFE0F?)\s+/u;
+
+/** „> 💡 Text“ wird wieder zum Callout (so schreibt flou Callouts auch als Markdown). */
+function toCallout(node: JSONContent): JSONContent {
+  if (node.type !== 'blockquote' || !node.content?.every((c) => c.type === 'paragraph')) return node;
+  const [first, ...rest] = node.content;
+  const lead = first.content?.[0];
+  const match = lead?.type === 'text' ? LEADING_EMOJI.exec(lead.text ?? '') : null;
+  if (!match || !lead) return node;
+  const remaining = (lead.text ?? '').slice(match[0].length);
+  const firstContent = remaining ? [{ ...lead, text: remaining }, ...(first.content ?? []).slice(1)] : (first.content ?? []).slice(1);
+  return { type: 'callout', attrs: { icon: match[1] }, content: [{ type: 'paragraph', content: firstContent }, ...rest] };
 }
 
 /** Ein einzelner Absatz wird als Inline-Inhalt eingesetzt (passt in jede Teilauswahl). */
