@@ -49,6 +49,12 @@ const DOWNLOAD: Option<Download> = None;
 
 /// Bis die öffentliche Adresse steht, höchstens so lange warten.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
+/// Erreichbarkeit prüfen: so oft, und nach so vielen Fehlschlägen hintereinander neu aufbauen.
+const HEALTH_INTERVAL: Duration = Duration::from_secs(45);
+const HEALTH_FAILURES: u32 = 2;
+/// Wartezeit vor einem neuen Versuch, verdoppelt sich bis zum Maximum.
+const RETRY_MIN: Duration = Duration::from_secs(10);
+const RETRY_MAX: Duration = Duration::from_secs(300);
 /// ntfy.sh hält Nachrichten 12 Stunden vor; die Adresse wird deshalb regelmäßig erneut gemeldet.
 const REPUBLISH: Duration = Duration::from_secs(6 * 60 * 60);
 
@@ -196,11 +202,23 @@ fn spawn(binary: &Path, config: &Path, port: u16) -> std::io::Result<Child> {
 }
 
 /// Baut den Tunnel auf und meldet den Fortschritt über den Freigabe-Status.
+/// Wie das Ende eines Tunnels zustande kam.
+enum Outcome {
+    /// Die Freigabe wurde beendet.
+    Stopped,
+    /// Tunnel weg (Prozess beendet, nicht erreichbar oder nie verbunden); `online` = war zwischendurch erreichbar.
+    Lost { online: bool, detail: Option<String> },
+}
+
+/// Baut den Tunnel auf und hält ihn am Leben: Bricht er ab (z. B. nach dem Ruhezustand), entsteht ein neuer
+/// mit neuer Adresse, die eigenen Geräten wieder gemeldet wird. Ohne Internet wird in wachsenden Abständen
+/// weiter versucht.
 pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>>>, generation: u64, topic: Arc<Mutex<Option<String>>>) {
     let share = app.state::<Share>();
     let fail = |message: String| {
         share.update(&app, generation, |s| {
             s.phase = "error";
+            s.url = None;
             s.error = Some(message);
         })
     };
@@ -209,27 +227,61 @@ pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>
         Ok(path) => path,
         Err(message) => return fail(message),
     };
-    if !share.is_current(generation) {
-        return;
-    }
-    share.update(&app, generation, |s| s.phase = "connecting");
     let config = match empty_config(&app) {
         Ok(path) => path,
         Err(message) => return fail(message),
     };
-    let mut child = match spawn(&binary, &config, port) {
+
+    let mut delay = RETRY_MIN;
+    loop {
+        if !share.is_current(generation) {
+            return;
+        }
+        share.update(&app, generation, |s| {
+            s.phase = "connecting";
+            s.url = None;
+            s.error = None;
+        });
+        match connect(&app, &binary, &config, port, &slot, generation, &topic).await {
+            Outcome::Stopped => return,
+            Outcome::Lost { online, detail } => {
+                if online {
+                    delay = RETRY_MIN;
+                }
+                let detail = detail.map(|d| format!(" ({d})")).unwrap_or_default();
+                fail(format!("Verbindung ins Internet unterbrochen{detail}. Neuer Versuch in {} Sekunden …", delay.as_secs()));
+                tokio::time::sleep(delay).await;
+                delay = (delay * 2).min(RETRY_MAX);
+            }
+        }
+    }
+}
+
+/// Ein Tunnel-Prozess: startet cloudflared, wartet auf die Adresse und überwacht die Erreichbarkeit.
+async fn connect(
+    app: &AppHandle,
+    binary: &Path,
+    config: &Path,
+    port: u16,
+    slot: &Arc<Mutex<Option<Child>>>,
+    generation: u64,
+    topic: &Arc<Mutex<Option<String>>>,
+) -> Outcome {
+    let share = app.state::<Share>();
+    let lost = |online: bool, detail: Option<String>| Outcome::Lost { online, detail };
+    let mut child = match spawn(binary, config, port) {
         Ok(child) => child,
-        Err(e) => return fail(format!("cloudflared startet nicht: {e}")),
+        Err(e) => return lost(false, Some(format!("cloudflared startet nicht: {e}"))),
     };
     let Some(stderr) = child.stderr.take() else {
-        return fail("cloudflared startet nicht".into());
+        return lost(false, None);
     };
     {
         let mut slot = slot.lock().unwrap();
         // Zwischenzeitlich gestoppt: Prozess sofort beenden.
         if !share.is_current(generation) {
             let _ = child.start_kill();
-            return;
+            return Outcome::Stopped;
         }
         *slot = Some(child);
     }
@@ -250,40 +302,75 @@ pub(super) async fn run(app: AppHandle, port: u16, slot: Arc<Mutex<Option<Child>
                     if let Some(mut child) = slot.lock().unwrap().take() {
                         let _ = child.start_kill();
                     }
-                    return fail("Der Tunnel kam nicht zustande. Bitte später erneut versuchen.".into());
+                    return lost(false, Some("keine Antwort von Cloudflare".into()));
                 }
             }
         };
         let Ok(Some(line)) = next else { break };
         if url.is_none() {
             if let Some(found) = parse_url(&line) {
-                share.update(&app, generation, |s| s.url = Some(found.clone()));
+                share.update(app, generation, |s| s.url = Some(found.clone()));
                 url = Some(found);
             }
         }
         registered |= line.contains("Registered tunnel connection");
-        if url.is_some() && registered && !online {
-            online = true;
-            share.update(&app, generation, |s| s.phase = "online");
-            let topic = topic.lock().unwrap().clone();
-            if let (Some(topic), Some(address)) = (topic, url.clone()) {
-                announce(app.clone(), generation, topic, address);
+        if !online && registered {
+            if let Some(address) = url.clone() {
+                online = true;
+                share.update(app, generation, |s| s.phase = "online");
+                let topic = topic.lock().unwrap().clone();
+                if let Some(topic) = topic {
+                    announce(app.clone(), generation, topic, address.clone());
+                }
+                watch(app.clone(), generation, address, slot.clone());
             }
         }
         if line.contains(" ERR ") {
             last_error = line.split(" ERR ").nth(1).map(|s| s.trim().to_string());
         }
     }
-    // cloudflared hat sich beendet, obwohl die Freigabe noch läuft.
-    let detail = last_error.map(|e| format!(" ({e})")).unwrap_or_default();
-    fail(format!("Die Verbindung ins Internet wurde unterbrochen{detail}."));
+    if !share.is_current(generation) {
+        return Outcome::Stopped;
+    }
+    lost(online, last_error)
+}
+
+/// Prüft regelmäßig von außen, ob die Adresse noch erreichbar ist. Cloudflare baut Quick Tunnels ab,
+/// wenn die Verbindung länger weg war (z. B. im Ruhezustand); dann wird der Prozess beendet und neu gestartet.
+fn watch(app: AppHandle, generation: u64, url: String, slot: Arc<Mutex<Option<Child>>>) {
+    tauri::async_runtime::spawn(async move {
+        let Ok(client) = http_client() else { return };
+        let mut failures = 0;
+        loop {
+            tokio::time::sleep(HEALTH_INTERVAL).await;
+            let share = app.state::<Share>();
+            if !share.is_current(generation) || share.current_url().as_deref() != Some(url.as_str()) {
+                return;
+            }
+            let reachable = client
+                .get(format!("{url}/api/ping"))
+                .timeout(Duration::from_secs(15))
+                .send()
+                .await
+                .is_ok_and(|r| r.status().is_success());
+            failures = if reachable { 0 } else { failures + 1 };
+            if failures >= HEALTH_FAILURES {
+                if let Some(mut child) = slot.lock().unwrap().take() {
+                    let _ = child.start_kill();
+                }
+                return;
+            }
+        }
+    });
 }
 
 /// Meldet die Adresse sofort und danach regelmäßig, solange diese Freigabe läuft.
 pub(super) fn announce(app: AppHandle, generation: u64, topic: String, url: String) {
     tauri::async_runtime::spawn(async move {
         loop {
-            if !app.state::<Share>().is_current(generation) {
+            let share = app.state::<Share>();
+            // Neue Adresse nach einem Neuaufbau: diese Meldung ist überholt.
+            if !share.is_current(generation) || share.current_url().as_deref() != Some(url.as_str()) {
                 return;
             }
             if let Err(err) = publish_address(&topic, &url).await {

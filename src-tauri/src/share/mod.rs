@@ -128,6 +128,11 @@ impl Share {
         self.running.lock().unwrap().as_ref().map(|r| r.hub.clone())
     }
 
+    /// Aktuelle öffentliche Adresse (wechselt, wenn der Tunnel neu aufgebaut wird).
+    fn current_url(&self) -> Option<String> {
+        self.status.lock().unwrap().url.clone()
+    }
+
     fn is_current(&self, generation: u64) -> bool {
         self.running.lock().unwrap().as_ref().is_some_and(|r| r.generation == generation)
     }
